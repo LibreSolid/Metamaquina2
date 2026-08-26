@@ -1,0 +1,5 @@
+[tool.solid-node]
+model = "metamaquina2.metamaquina2:Metamaquina2"
+
+[tool.libresolid-studio]
+profile = "fordesmac"
