@@ -122,12 +122,12 @@ class Metamaquina2(AssemblyNode):
         stage at a height, so the lift is this translate and no port is
         needed for it.
         """
-        self.connect(self.state['x'], self.x_stage.carriage_position)
-        self.connect(self.state['y'], self.y_axis.platform_position)
+        self.connect(self.x, self.x_stage.carriage_position)
+        self.connect(self.y, self.y_axis.platform_position)
 
         self.x_stage.translate(
             [0, -XZStage_offset,
-             BuildPlatform_height + self.state['z'] + nozzle_tip_distance])
+             BuildPlatform_height + self.z + nozzle_tip_distance])
 
         return [self.frame, self.z_axis, self.y_axis, self.x_stage,
                 self.electronics, self.spool_holder]
