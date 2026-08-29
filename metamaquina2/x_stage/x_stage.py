@@ -13,7 +13,7 @@ from metamaquina2.x_stage.carriage.x_carriage import XCarriage
 from metamaquina2.x_stage.ends.idler.x_end_idler import XEndIdler
 from metamaquina2.x_stage.ends.motor.x_end_motor import XEndMotor
 from metamaquina2.x_stage.platform_plate import XPlatformPlate
-from metamaquina2.x_stage.x_belt import XBelt
+from metamaquina2.x_stage.x_belt import CLAMP_ORIGIN, XBelt
 from metamaquina2.x_stage.x_rods import XRods
 
 
@@ -34,10 +34,11 @@ class XStage(AssemblyNode):
     carriage at nought.
 
     Only the carriage moves.  The rods it slides on, the plate under
-    them, the boxes at both ends and the belt that pulls it are all
-    fixed in this frame, which is the truth for everything but the
-    belt: that one really does follow the carriage on the machine, and
-    following it means re-drawing the loop rather than moving it.
+    them, the boxes at both ends and the loop the belt makes are all
+    fixed in this frame.  The belt is the one part that is neither: its
+    loop stands still while the teeth inside it travel with the
+    carriage, so it takes the carriage's position too and re-draws
+    itself from it rather than being placed.
     """
 
     carriage_position = TranslationalPort(unit='mm')
@@ -57,14 +58,24 @@ class XStage(AssemblyNode):
         super().__init__(*args, **kwargs)
 
     def render(self):
-        """Slide the carriage to where the machine put it.
+        """Slide the carriage to where the machine put it, and tell the
+        belt where it is being held.
 
         The carriage is drawn at `XCarPosition`, the design's own rest
         knob, so what the beam applies here is the offset from rest and
         not the position itself.
+
+        The belt is told the same position differently, because it is a
+        length of belt rather than a place: the anchor is measured from
+        where the upper run leaves the motor pulley, and the port's own
+        scale turns millimetres along the beam into millimetres of belt
+        across that slightly tilted run.
         """
         self.carriage.translate(
             [self.carriage_position.value - XCarPosition, 0, 0])
+
+        self.connect(self.carriage_position.value - CLAMP_ORIGIN,
+                     self.belt.clamp)
 
         return [self.end_motor, self.end_idler, self.carriage,
                 self.plate, self.rods, self.belt]

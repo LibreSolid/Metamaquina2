@@ -15,6 +15,18 @@ fail too.  The rod contracts are then asked again at both ends of the
 declared travel, which is the same question the rest pose already
 answered, put to a machine in motion.
 
+The two belts are the one place where where-a-part-is-put is the wrong
+question altogether.  A belt does not go anywhere -- both ends of each
+loop are bolted down -- and yet it is not still: the rubber inside the
+loop is dragged through it by the carriage clamped to it, so the belt
+has to be drawn afresh at every position.  Its tests ask that pair
+together, because either half alone would pass for something wrong: a
+belt that only moved would be a rigid part badly placed, and one that
+only changed shape would be a shape with no carriage in it.  What the
+teeth do is then asked exactly, in teeth and in sampled rings rather
+than in millimetres, because a tooth pattern is periodic and a test in
+millimetres could not tell one tooth from the next.
+
 The two whole-model contracts `solid new` scaffolds --
 `assertNoDisconnectedSolids` and `assertNoSolidInterference` -- are
 deliberately not asserted, and it is worth being precise about why,
@@ -35,9 +47,18 @@ and asserting them would only produce a red suite nobody could act on.
 Making them true is a change to the OpenSCAD design.
 """
 
+import numpy
+import trimesh
+
+from solid_node.core.serializer import (
+    document_version,
+    serialize_node,
+    symbolic_document,
+)
 from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
+from metamaquina2 import gt2
 from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
@@ -45,6 +66,8 @@ from metamaquina2.params import (
     YCarPosition,
     ZCarPosition,
 )
+from metamaquina2.x_stage import x_belt
+from metamaquina2.y_axis import y_belt
 
 
 class Metamaquina2Test(TestCase):
@@ -66,6 +89,14 @@ class Metamaquina2Test(TestCase):
     # tick re-renders the entire machine, so there is no reason to pay
     # for a finer step to prove where a ramp lands.
     TICK = 0.5
+
+    # A belt rides the bearings it runs on, so its surface and theirs
+    # meet: the shared volume is not a gap but the dust two touching
+    # surfaces leave in a mesh boolean, and a thousandth of a cubic
+    # millimetre is six orders of magnitude above the dust measured and
+    # four below the tens of cubic millimetres a belt drawn a
+    # millimetre low cuts out of an outer race.
+    RIDING = 0.001
 
     def setUp(self):
         """Start every test from the rest pose.
@@ -229,6 +260,161 @@ class Metamaquina2Test(TestCase):
                         f'{bearing.name} leaves the Z rods at z={height}')
 
     ########################################
+    # The belts, which move without going anywhere
+
+    def test_each_belt_is_a_flexible_leaf_of_its_axis(self):
+        """Both belts hang off the axis that drives them, as parts
+        whose shape is a function of where that axis is.
+
+        A rigid part promises the same solid wherever the machine
+        stands, which is what lets it be cached and fused; a belt makes
+        no such promise, and the tree has to know that about it or it
+        would be cached at one carriage position and drawn at every
+        other.
+        """
+        for belt, axis in ((self.node.x_stage.belt, self.node.x_stage),
+                           (self.node.y_axis.belt, self.node.y_axis)):
+            self.assertIn(belt, axis.children)
+            self.assertTrue(belt.flexible, f'{belt.name} is not flexible')
+            self.assertFalse(belt.rigid, f'{belt.name} claims to be rigid')
+            self.assertEqual(belt.tech, 'molejo')
+            # One port, and it is the clamp its ends are held by.
+            self.assertEqual(sorted(belt.bound_values()), ['clamp'])
+
+    def test_each_belt_is_one_closed_loop(self):
+        """A belt is a single closed band of rubber.
+
+        Swept from a closed section along a closed path, so it is
+        watertight by construction rather than by repair -- and this is
+        what catches the construction going wrong: a loop left open at
+        the seam, or a section wound the wrong way round.
+        """
+        for belt in (self.node.x_stage.belt, self.node.y_axis.belt):
+            mesh = belt.mesh
+            self.assertTrue(mesh.is_watertight,
+                            f'{belt.name} is not a closed band')
+            self.assertEqual(len(mesh.split(only_watertight=False)), 1,
+                             f'{belt.name} came out in pieces')
+            self.assertGreater(mesh.volume, 0,
+                               f'{belt.name} is inside out')
+
+    def test_driving_x_redraws_the_belt_where_it_stands(self):
+        """The X driver reaches the belt without moving it.
+
+        Both ends of the loop are bolted to the beam, so driving the
+        carriage must not shift the belt one micron: what changes is the
+        rubber inside the loop, not where the loop is.  Asking for both
+        at once is the point -- a belt that only moved would be a rigid
+        part badly placed, and one that only changed would be a shape
+        with no carriage in it.
+        """
+        belt = self.node.x_stage.belt
+        at_rest = belt.mesh.vertices.copy()
+        bounds_at_rest = belt.mesh.bounds.copy()
+
+        self.node.set_state(x=XCarPosition + 60)
+
+        self.assertFalse(numpy.allclose(belt.mesh.vertices, at_rest),
+                         'the X belt is drawn the same at two positions')
+        numpy.testing.assert_allclose(belt.mesh.bounds, bounds_at_rest,
+                                      atol=self.PLACED)
+
+    def test_driving_y_redraws_the_belt_where_it_stands(self):
+        """The Y driver reaches the belt without moving it.
+
+        The same contract as the X belt's, asked of the loop that hangs
+        on three bearings bolted to the frame.
+        """
+        belt = self.node.y_axis.belt
+        at_rest = belt.mesh.vertices.copy()
+        bounds_at_rest = belt.mesh.bounds.copy()
+
+        self.node.set_state(y=YCarPosition - 70)
+
+        self.assertFalse(numpy.allclose(belt.mesh.vertices, at_rest),
+                         'the Y belt is drawn the same at two positions')
+        numpy.testing.assert_allclose(belt.mesh.bounds, bounds_at_rest,
+                                      atol=self.PLACED)
+
+    def test_the_x_belt_teeth_travel_with_the_carriage(self):
+        """Drive the carriage and the teeth go with it, exactly.
+
+        Three questions.  Move the carriage one whole tooth and the belt
+        comes out drawn precisely as it was, every tooth having stepped
+        into the place of the one before it.  Move it half a tooth and
+        the belt comes out as differently as it can be: somewhere a
+        crest has become a root, which is the tooth height and not a
+        micron more.  Move it one sampled ring and the pattern that was
+        at a ring is now at the ring after it -- which is the question a
+        belt whose teeth ran backwards, or ran at the wrong rate, gets
+        wrong, and the other two do not ask.
+        """
+        self.assertTeethTravel(self.node.x_stage.belt, 'x', XCarPosition,
+                               x_belt.CIRCLES, x_belt.CLAMP_SPAN, +1)
+
+    def test_the_y_belt_teeth_travel_with_the_bed(self):
+        """Drive the bed and the teeth go with it, exactly.
+
+        The same three questions as the X belt's, and the sign is the
+        interesting one: the loop is drawn in a plane the axis stands up
+        with a quarter turn, so the bed running towards the rear of the
+        machine pulls the belt the other way along its clamped run.
+        """
+        self.assertTeethTravel(self.node.y_axis.belt, 'y', YCarPosition,
+                               y_belt.CIRCLES, y_belt.CLAMP_SPAN, -1)
+
+    def test_the_x_belt_rides_its_idler_without_biting_it(self):
+        """The belt sits on the idler bearing, not in it.
+
+        The design draws a belt as a 2 mm ring hulled around the circles
+        it wraps, which touches whatever it is drawn around by
+        construction.  A belt with teeth is drawn at the radius it
+        really runs at -- pitch line outside, tooth tips down on the
+        outer race -- and that radius either lands on the bearing or it
+        does not.
+        """
+        idler = self.node.x_stage.end_idler.idler
+        self.assertRidesOn(self.node.x_stage.belt, idler.bearing)
+        self.assertRidesOn(self.node.x_stage.belt, idler.shaft)
+
+    def test_the_y_belt_rides_the_three_idlers_without_biting_them(self):
+        """The belt sits on all three bar bearings, not in any of them.
+
+        Worth asking of each: the loop is placed once, and a height that
+        suited two of the three would still be wrong.
+        """
+        bars = self.node.frame.bars
+        for idler in (bars.front.idler, bars.rear.upper_idler,
+                      bars.rear.lower_idler):
+            self.assertRidesOn(self.node.y_axis.belt, idler.bearing)
+
+    def test_the_belts_travel_into_the_viewer_as_shapes(self):
+        """A belt is published as its shape, not as a mesh.
+
+        Where a rigid part's document points at an STL, a belt's carries
+        the analytic shape and one expression per parameter, so whatever
+        opens the document can re-draw the belt itself at any carriage
+        position instead of being handed one position's triangles.  The
+        expressions have to name the machine's own drivers, or the
+        viewer's sliders would move a bed with no belt following it.
+        """
+        with symbolic_document(self.node) as (declarations, _):
+            root = serialize_node(self.node, lambda node: node.stl_file)
+
+            self.assertEqual(document_version(root), 3)
+
+            belts = self.flexible_nodes(root)
+            self.assertEqual(sorted(belts),
+                             ['x_stage.belt', 'y_axis.belt'])
+
+            for path, driver in (('x_stage.belt', 'x'), ('y_axis.belt', 'y')):
+                published = belts[path]
+                self.assertEqual(published['tech'], 'molejo')
+                self.assertEqual(sorted(published['params']), ['clamp'])
+                self.assertIn(driver, declarations)
+                self.assertIn(driver, published['params']['clamp'])
+
+    ########################################
     # What the machine can be told to do
 
     def test_the_machine_rests_where_the_design_draws_it(self):
@@ -290,6 +476,91 @@ class Metamaquina2Test(TestCase):
         needs, or a machine sliding whole would pass every one of
         them."""
         self.assertMovedBy(part, was, [0, 0, 0])
+
+    def assertTeethTravel(self, belt, driver, rest, circles, span, sense):
+        """`belt`'s teeth follow `driver`, one for one and the right way.
+
+        `sense` is which way the axis' own coordinate runs against the
+        belt's clamped span: the X carriage and its belt agree, the bed
+        and its belt do not.
+        """
+        pitch = gt2.pitch(circles)
+        # A whole tooth and a ring of belt, each as far as the axis has
+        # to travel to pull that much belt through the clamp.
+        tooth = sense * pitch / gt2.span_scale(circles, span)
+        ring = (sense * gt2.spans(circles)[span][2]
+                / gt2.PATH_SAMPLES / gt2.span_scale(circles, span))
+
+        at_rest = belt.mesh.vertices.copy()
+        teeth_at_rest = self.tooth_depths(belt)
+
+        self.node.set_state(**{driver: rest + tooth})
+        numpy.testing.assert_allclose(
+            belt.mesh.vertices, at_rest, atol=self.PLACED,
+            err_msg=f'{belt.name} is drawn differently one tooth along')
+
+        self.node.set_state(**{driver: rest + tooth / 2})
+        moved = numpy.linalg.norm(belt.mesh.vertices - at_rest, axis=1).max()
+        self.assertAlmostEqual(
+            moved, gt2.TOOTH_HEIGHT, delta=self.PLACED,
+            msg=(f'half a tooth along, the furthest {belt.name} vertex '
+                 f'moved {moved}, not the tooth height'))
+
+        self.node.set_state(**{driver: rest + ring})
+        stepped = self.tooth_depths(belt)
+        first = 2 * span * gt2.PATH_SAMPLES
+        clamped = slice(first + 1, first + gt2.PATH_SAMPLES)
+        before = slice(first, first + gt2.PATH_SAMPLES - 1)
+        numpy.testing.assert_allclose(
+            stepped[clamped], teeth_at_rest[before], atol=self.PLACED,
+            err_msg=(f"{belt.name}'s teeth did not step exactly one ring "
+                     f"along the run they are clamped to"))
+
+    def assertRidesOn(self, belt, part):
+        """`belt` touches `part` without cutting into it.
+
+        Not `assertNotIntersecting`, which is where this would belong:
+        that assertion reaches for a node's cached STL whenever the pair
+        is not exact on both sides, and a belt has no cached STL to
+        reach for -- its geometry is one evaluation per position.  So
+        the boolean is taken here, over the two meshes, and the verdict
+        is a volume rather than a yes or no, because a belt really is
+        in contact with what it runs on.
+        """
+        shared = trimesh.boolean.intersection([belt.mesh, part.mesh])
+        volume = 0.0 if shared.is_empty else shared.volume
+        self.assertLess(
+            volume, self.RIDING,
+            f'{belt.name} cuts {volume} cubic mm out of {part.name}')
+
+    def tooth_depths(self, belt):
+        """How much tooth `belt` has at each of its sampled rings.
+
+        A molejo shape is sampled at the tessellation its document
+        declares rather than at one the evaluator chooses, so ring `n`
+        of a loop is always the same distance along that loop whatever
+        the axis is doing, and the vertices come back ring by ring.
+        What changes with the axis is how much tooth there is at each
+        ring, which is the difference between the section's inner face
+        and the back beside it, less the belt's own thickness there.
+        """
+        vertices = belt.mesh.vertices
+        inner, back = vertices[0::4], vertices[1::4]
+        return (numpy.linalg.norm(back - inner, axis=1)
+                - (gt2.THICKNESS - gt2.TOOTH_HEIGHT))
+
+    def flexible_nodes(self, document, path=(), found=None):
+        """Every flexible part of a serialized tree, by its path in it.
+
+        By path rather than by name: a node's name is the attribute its
+        parent holds it in, and both axes call theirs `belt`.
+        """
+        found = {} if found is None else found
+        if path and 'flexible' in document:
+            found['.'.join(path)] = document['flexible']
+        for child in document.get('children', ()):
+            self.flexible_nodes(child, path + (child['name'],), found)
+        return found
 
     def _is_on(self, bearing, rod):
         """Is this bearing threaded onto this rod?"""
