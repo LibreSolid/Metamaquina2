@@ -23,9 +23,27 @@ from metamaquina2.params import (
 )
 from metamaquina2.x_stage.carriage.belt_clamp import XBeltClamp
 from metamaquina2.x_stage.carriage.carriage_plate import XCarriagePlate
-from metamaquina2.x_stage.carriage.extruder.extruder import Extruder
+from metamaquina2.x_stage.carriage.extruder.extruder import (
+    FILAMENT_ENTRY as ENTRY_ON_THE_EXTRUDER,
+    Extruder,
+)
 from metamaquina2.x_stage.carriage.sandwich_plate import (
     XCarriageSandwichPlate)
+
+
+#: Where the extruder stands on this carriage: on the plate, at the
+#: design's own rest position, and turned to face the front of the
+#: machine.  Named because two things read it -- the extruder itself,
+#: and the filament that ends inside it.
+EXTRUDER_POSITION = [XCarPosition, 0, XCarriage_height + thickness]
+EXTRUDER_ANGLE = 90
+
+#: Where the filament goes in, in this carriage's own frame: the
+#: extruder's own entry, carried through the quarter turn that faces it
+#: forward, which swaps the extruder's x onto the carriage's y.
+FILAMENT_ENTRY = [EXTRUDER_POSITION[0] - ENTRY_ON_THE_EXTRUDER[1],
+                  EXTRUDER_POSITION[1] + ENTRY_ON_THE_EXTRUDER[0],
+                  EXTRUDER_POSITION[2] + ENTRY_ON_THE_EXTRUDER[2]]
 
 
 class XCarriage(AssemblyNode):
@@ -68,8 +86,8 @@ class XCarriage(AssemblyNode):
             [XCarPosition, 0, spacer_deck - thickness])
 
         self.extruder = (Extruder()
-                         .rotate(90, [0, 0, 1])
-                         .translate([XCarPosition, 0, deck + thickness]))
+                         .rotate(EXTRUDER_ANGLE, [0, 0, 1])
+                         .translate(EXTRUDER_POSITION))
 
         clamp_y = (XPlatform_width / 2 + XEnd_extra_width - belt_offset
                    + belt_width)

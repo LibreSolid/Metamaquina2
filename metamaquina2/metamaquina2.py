@@ -104,6 +104,57 @@ millimetre to spare.  The liner's own length then follows, and it is the
 second place -- after the bed springs -- where the design states a
 length for a gap and its own parts leave a different one.
 
+The last thing to arrive is the one the machine eats.  The design says
+what the filament is three times -- `diameter=3` declared on its own
+line in the file that draws the reel and used by nothing in it, a PTFE
+liner bored 3.0 for it, a 3.2 channel cut up the middle slice of the
+extruder for it to arrive by -- and draws it nowhere, so the stand
+beside the machine held a plain tube of ABS with nothing between it and
+the extruder.
+
+Now it holds a reel with its outermost layer drawn as the strand it is,
+and that strand runs on to the machine.  It is the third flexible leaf
+here and the one the other two are not: a belt's loop stands still
+while the rubber inside it travels, a spring is shorter when you press
+on it, and this is a length of stock hanging between a stand that never
+moves and a print head that moves in X and in Z.  Drive either and the
+run is drawn again from wherever the head has got to, while the turns
+on the reel stay exactly where they are, because a reel does not turn
+when a carriage does.  What filament is here is in `filament.py`.
+
+The layer is not chosen either.  A wound turn lies against the last
+one, so its pitch is the stock's own diameter and its count is however
+many whole turns of that the reel's width holds -- fifty-three, of the
+reel's hundred and sixty.  The tube under them is drawn to what is
+wound below the layer, so the reel still comes to the diameter the
+design draws it at, and its outside is now made of turns.
+
+Getting there is not a straight line either.  The stand is beside the
+machine and the extruder is inside it, so a run drawn from one to the
+other goes through the frame's right-hand side panel, the beam's own
+plate and the box at the beam's end.  It is carried over the machine's
+own edge instead, clear of the highest sheet the frame carries, and
+comes down through the opening the top panel is cut with for the
+carriage to travel in -- which is why the free run is pinned at two
+points rather than one, and why five ports and not three.
+
+Where the run stops is a finding rather than a choice, and there are
+four of them.  The first is at the mouth itself: the extruder handle's
+plate stands on the block's top face three tenths of a millimetre
+inside the channel it is beside, so the machine's own parts leave 2.9
+mm of clear channel for 3 mm of stock and the strand grazes the plate
+going in.  Below it the hobbed bolt and the idler bearing are drawn
+into each other where the stock would be gripped, because the design
+draws the idler shut and gives no knob for opening it.  Below them the
+hot end is drawn on the filament axis at nought while the extruder cuts
+its channel, its two M3 holes and its nozzle-holder slot three tenths
+of a millimetre to one side, so the two disagree about where the
+filament goes -- the second place, after the bed springs, where the
+design states one thing twice.  And below that the liner's bore is 3.0
+and so is the stock, which is a bore the size of what runs down it
+rather than a fit anything can be drawn in.  All four are asked for by
+contract, so none of them can quietly go away.
+
 Where the geometry comes from is in `scad.py`, where the dimensions
 come from is in `params.py`, and how a part is authored is in
 `part.py`.
@@ -112,8 +163,9 @@ come from is in `params.py`, and how a part is authored is in
 from solid_node.node import AssemblyNode
 from solid_node.simulation import Driver, Instruction
 
-from metamaquina2 import z_screw
+from metamaquina2 import filament, z_screw
 from metamaquina2.electronics.electronics import Electronics
+from metamaquina2.filament import Filament
 from metamaquina2.frame.frame import Frame
 from metamaquina2.params import (
     BuildPlatform_height,
@@ -126,8 +178,8 @@ from metamaquina2.params import (
     ZCarPosition,
     nozzle_tip_distance,
 )
-from metamaquina2.spool_holder.spool_holder import SpoolHolder
-from metamaquina2.x_stage.x_stage import XStage
+from metamaquina2.spool_holder.spool_holder import SPOOL_HEIGHT, SpoolHolder
+from metamaquina2.x_stage.x_stage import XStage, filament_entry
 from metamaquina2.y_axis.y_axis import YAxis
 from metamaquina2.z_axis.z_axis import ZAxis
 
@@ -205,6 +257,27 @@ class Metamaquina2(AssemblyNode):
                              .rotate(90, [0, 0, 1])
                              .translate(self.spool_holder_position))
 
+        # Where the reel's axis stands, in the machine's coordinates.
+        # The stand is turned a quarter turn to put its bar across the
+        # machine, and a point on the stand's own axis does not move
+        # when it is turned about that axis, so the reel's centre is
+        # simply the stand's position and the height it hangs the reel
+        # at.
+        reel = [self.spool_holder_position[0],
+                self.spool_holder_position[1],
+                self.spool_holder_position[2] + SPOOL_HEIGHT]
+
+        #: Where the strand's own frame stands.  Held on the machine
+        #: rather than worked out twice, because `render` has to read a
+        #: point of the machine back in that frame every time it binds
+        #: the run's far end.
+        self.strand_origin = [reel[axis] + filament.OFFSET[axis]
+                              for axis in range(3)]
+
+        self.filament = (Filament()
+                         .rotate(*filament.PLACEMENT)
+                         .translate(self.strand_origin))
+
         super().__init__(*args, **kwargs)
 
     def render(self):
@@ -223,15 +296,43 @@ class Metamaquina2(AssemblyNode):
         rather than a port because the machine itself is what holds the
         beam at a height; what the beam hangs FROM is in the Z axis, and
         the two agree because both are read off the same screw.
+
+        The filament is told the two points its free run is pinned at,
+        and one of them is the same lift a third time.  The beam says
+        where its extruder's channel opens in its own frame, the machine
+        adds what it stood the beam off by, and `in_strand_frame` reads
+        the result back in the strand's own turned frame.  The other is
+        where the run gets over the frame, which is the machine's to say
+        because the frame is: a point of air off the machine's own edge,
+        above the highest sheet the frame carries, in the plane the run
+        comes in on.
+
+        Five ports rather than two, because a point is three numbers and
+        a molejo parameter is a plain named number with no arithmetic
+        behind it -- and five rather than six because the two points
+        share that plane.
         """
         self.connect(self.x, self.x_stage.carriage_position)
         self.connect(self.y, self.y_axis.platform_position)
         self.connect(self.z + z_screw.PHASE, self.z_axis.screw)
 
-        self.x_stage.translate(
-            [0, -XZStage_offset,
-             BuildPlatform_height + z_screw.lift(self.z)
-             + nozzle_tip_distance])
+        stage = [0, -XZStage_offset,
+                 BuildPlatform_height + z_screw.lift(self.z)
+                 + nozzle_tip_distance]
+        self.x_stage.translate(stage)
+
+        entry = filament_entry(self.x)
+        entry = [entry[axis] + stage[axis] for axis in range(3)]
+        head = filament.in_strand_frame(entry, self.strand_origin)
+        over = filament.in_strand_frame(
+            [filament.CROSSING_X, entry[1], filament.CROSSING_Z],
+            self.strand_origin)
+
+        self.connect(over[0], self.filament.over_x)
+        self.connect(over[1], self.filament.over_y)
+        self.connect(head[0], self.filament.head_x)
+        self.connect(head[1], self.filament.head_y)
+        self.connect(head[2], self.filament.plane)
 
         return [self.frame, self.z_axis, self.y_axis, self.x_stage,
-                self.electronics, self.spool_holder]
+                self.electronics, self.spool_holder, self.filament]

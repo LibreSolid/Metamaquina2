@@ -15,12 +15,26 @@ from metamaquina2.params import (
     SpoolHolder_total_height,
     SpoolHolder_total_width,
     SpoolHolder_width,
+    spool_bore,
     thickness,
 )
 from metamaquina2.spool_holder.bar import SpoolHolderBar
 from metamaquina2.spool_holder.end_panel import SpoolHolderEndPanel
 from metamaquina2.spool_holder.side_panel import SpoolHolderSidePanel
 from metamaquina2.spool_holder.spool import FilamentSpool
+
+
+#: How high the reel's own axis stands in this stand's frame.
+#:
+#: The bar's height, which is where the design's own `FilamentSpool()`
+#: hangs the reel: the top of the uprights less the slot cut in them,
+#: less what the slot leaves round the bar, and less the half bore the
+#: reel is threaded on.  Published because the strand wound on the reel
+#: is not a child of this stand -- it ends on the machine's carriage --
+#: so the machine has to be able to ask where the reel is.
+SPOOL_HEIGHT = (SpoolHolder_total_height - SpoolHolder_top_cut_height
+                - spool_bore / 2 + SpoolHolder_bar_diameter / 2
+                - (SpoolHolder_top_cut_width - SpoolHolder_bar_diameter) / 2)
 
 
 class SpoolHolder(AssemblyNode):
@@ -84,13 +98,9 @@ class SpoolHolder(AssemblyNode):
             .translate([-cap_offset, 0, bar_height]),
         ]
 
-        spool_height = (SpoolHolder_total_height - SpoolHolder_top_cut_height
-                        - 35 / 2 + SpoolHolder_bar_diameter / 2
-                        - (SpoolHolder_top_cut_width
-                           - SpoolHolder_bar_diameter) / 2)
         self.spool = (FilamentSpool()
                       .rotate(90, [0, 1, 0])
-                      .translate([-FilamentSpool.width / 2, 0, spool_height]))
+                      .translate([-FilamentSpool.width / 2, 0, SPOOL_HEIGHT]))
 
         super().__init__(*args, **kwargs)
 

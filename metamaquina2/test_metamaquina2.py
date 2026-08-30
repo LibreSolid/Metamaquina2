@@ -83,26 +83,37 @@ from solid_node.core.serializer import (
 from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
-from metamaquina2 import gt2, jhead, thread, z_screw
+from metamaquina2 import filament, gt2, jhead, thread, z_screw
 from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
+    BuildPlatform_height,
     BuildVolume_X,
     BuildVolume_Y,
     IdlerRadius,
+    PTFE_liner_bore,
     PTFE_liner_diameter,
     PTFE_liner_length,
     PulleyRadius,
     XCarPosition,
+    XCarriage_height,
     XZStage_offset,
     YCarPosition,
     YPlatform_height,
     YPlatform_zoffset,
     ZCarPosition,
     belt_width,
+    extruder_slice_height,
+    filament_channel_width,
+    filament_channel_x,
+    filament_diameter,
     heatedbed_spring_compressed_length,
     jhead_instalation_depth,
     jhead_length,
     m3_washer_thickness,
+    nozzle_tip_distance,
+    spool_diameter,
+    spool_width,
+    thickness,
 )
 from metamaquina2.x_stage import x_belt
 from metamaquina2.y_axis import y_belt
@@ -218,6 +229,17 @@ class Metamaquina2Test(TestCase):
     # millimetre a spring drawn to the design's own compressed length
     # would float by, which is the mistake this separates.
     SEATED = 0.05
+
+    # How far the wound layer may stand off the tube it lies on.
+    #
+    # The strand's section is an eight-sided polygon, so wherever a
+    # flat rather than a corner faces the reel the mesh puts the stock
+    # 0.114 mm shy of the circle it is really drawn at. Fifteen
+    # hundredths is just over that and two orders under the three
+    # millimetres a layer drawn on top of the design's whole reel
+    # instead of under it would float by, which is the mistake this
+    # separates.
+    LAID = 0.15
 
     # How near a spring's derived bore has to land on the clearance it
     # was derived for.
@@ -1388,6 +1410,406 @@ class Metamaquina2Test(TestCase):
         self.assertMovedBy(nozzle, at_rest, [0, 0, -30])
 
     ########################################
+    # The filament, which is wound at one end and driven at the other
+
+    def test_the_machine_carries_the_filament_it_is_loaded_with(self):
+        """One strand, hanging off the root beside the stand.
+
+        Off the root and not off the spool holder, because it is the
+        one part of this model that is in two places: it lies on a
+        stand that never moves and it ends on a carriage that does.
+        Five ports, and they are the two points the free run is pinned
+        at, sharing the plane they are both in -- everything else about
+        a length of stock is the stock.
+        """
+        strand = self.node.filament
+
+        self.assertIn(strand, self.node.children)
+        self.assertTrue(strand.flexible, f'{strand.name} is not flexible')
+        self.assertFalse(strand.rigid, f'{strand.name} claims to be rigid')
+        self.assertEqual(strand.tech, 'molejo')
+        self.assertEqual(sorted(strand.bound_values()),
+                         ['head_x', 'head_y', 'over_x', 'over_y', 'plane'])
+
+    def test_the_wound_layer_lies_on_the_reel(self):
+        """The turns on the reel run at one radius about the reel's own
+        axis, and the layer's outside is the reel's outside.
+
+        The two halves are one claim taken from both ends.  A layer
+        drawn at the wrong radius keeps neither; a layer drawn at the
+        right radius but with the section's centre line where its
+        surface belongs keeps the first and misses the design's own
+        diameter by half a stock.
+        """
+        axis = self.reel_axis()
+        coil, _ = self.strand_parts()
+
+        radii = numpy.linalg.norm(coil[:, [0, 2]] - axis, axis=1)
+        laid = (spool_diameter - filament_diameter) / 2
+        self.assertAlmostEqual(
+            radii.min(), laid, delta=0.01,
+            msg='the layer dips inside the radius a layer is wound at')
+        self.assertAlmostEqual(
+            radii.max(), laid, delta=0.01,
+            msg='the layer stands outside the radius a layer is wound at')
+
+        vertices = self.node.filament.mesh.vertices
+        on_the_reel = numpy.linalg.norm(
+            vertices[:len(coil) * filament.PROFILE_SAMPLES, [0, 2]] - axis,
+            axis=1)
+        self.assertAlmostEqual(
+            on_the_reel.max(), spool_diameter / 2, delta=0.01,
+            msg='the loaded reel does not come to the diameter the design '
+                'draws it at')
+
+        across = (self.node.filament.mesh.vertices[
+            :len(coil) * filament.PROFILE_SAMPLES, 1] - self.reel_middle())
+        self.assertLess(
+            numpy.abs(across).max(), spool_width / 2,
+            'the layer hangs off the end of the reel it is wound on')
+
+    def test_the_layer_rests_on_the_reel_it_is_wound_on(self):
+        """The tube is drawn to what is wound under the layer, and the
+        layer lies on it: not floating over it, and not inside it.
+
+        Asked as a radius rather than as the shared volume a belt
+        riding its bearings is asked for.  A layer wound on a reel is
+        in contact with what is under it along its whole length --
+        twenty-six metres of it here -- and a swept helix is drawn as
+        chords, so between one ring and the next the strand's surface
+        falls inside the circle it really runs on and does that
+        everywhere at once.  What that leaves in a mesh boolean is
+        cubic millimetres rather than the thousandth a belt's few
+        hundred millimetres of contact leave, and it is the drawing's
+        own sampling rather than a placement mistake.  The rings
+        themselves are on the true helix, so the radius they reach is
+        what a placement mistake actually moves.
+
+        Both bounds, because either alone passes for something wrong: a
+        layer laid on top of the design's whole reel instead of under
+        its outside floats a stock diameter clear and keeps the lower
+        one, and a tube still drawn to the design's own diameter
+        swallows the layer whole and keeps the upper.
+        """
+        axis = self.reel_axis()
+        reel = self.node.spool_holder.spool
+
+        wound = numpy.linalg.norm(
+            reel.mesh.vertices[:, [0, 2]] - axis, axis=1).max()
+        self.assertAlmostEqual(
+            wound, spool_diameter / 2 - filament_diameter, delta=0.01,
+            msg='the tube is not drawn to what is wound under the layer')
+
+        coil, _ = self.strand_parts()
+        on_the_reel = self.node.filament.mesh.vertices[
+            :len(coil) * filament.PROFILE_SAMPLES]
+        inner = numpy.linalg.norm(
+            on_the_reel[:, [0, 2]] - axis, axis=1).min()
+
+        self.assertGreater(
+            inner, wound - 0.01,
+            'the layer is drawn inside the reel it is wound on')
+        self.assertLess(
+            inner, wound + self.LAID,
+            f'the layer stands {inner - wound} mm clear of the reel')
+
+    def test_the_layer_is_every_whole_turn_the_reel_holds(self):
+        """As many turns as fit, laid at the stock's own diameter.
+
+        A layer on a reel has no pitch to choose: the next turn lies
+        against the last one.  So the turn count is what the width
+        allows and nothing else, and this asks the metal for it rather
+        than reading the derivation back -- the turns are counted by
+        going round the reel with them, and the pitch is measured
+        across it.
+
+        The width a layer takes up is one stock more than its turns
+        rise, because half a stock stands proud at each end, so the
+        count the reel holds is one under what its width divides by.
+        The last assertion is what makes that a claim rather than an
+        off-by-one: one more turn would not have fitted.
+        """
+        axis = self.reel_axis()
+        coil, _ = self.strand_parts()
+
+        angles = numpy.unwrap(numpy.arctan2(coil[:, 2] - axis[1],
+                                            coil[:, 0] - axis[0]))
+        turned = abs(angles[-1] - angles[0]) / (2 * math.pi)
+        traverse = abs(coil[-1][1] - coil[0][1])
+
+        whole = int(spool_width / filament_diameter) - 1
+        self.assertAlmostEqual(
+            turned, whole, delta=0.01,
+            msg='the layer is not the whole turns the reel holds')
+        self.assertAlmostEqual(
+            traverse / turned, filament_diameter, delta=0.01,
+            msg='the turns are not laid against each other')
+        self.assertLessEqual(
+            (whole + 1) * filament_diameter, spool_width,
+            'the layer takes up more of the reel than it has')
+        self.assertGreater(
+            (whole + 2) * filament_diameter, spool_width,
+            'one more turn would have fitted across the reel')
+
+    def test_the_run_ends_where_the_machine_takes_the_filament_in(self):
+        """The free run ends at the mouth of the design's own filament
+        channel, pointing down it.
+
+        Where it ends and which way it arrives are two contracts, not
+        one: a run that ended at the right point across the channel
+        rather than along it could not be pushed into it, and would
+        keep any check that only asked where it stopped.
+        """
+        _, run = self.strand_parts()
+
+        # The extruder stands turned a quarter turn on the carriage, so
+        # the x the design cuts its channel at is the machine's own y,
+        # and the height the channel opens at is measured from the
+        # extruder's own foot: the carriage deck and its plate, the
+        # beam's lift, and the platform the beam is stood off.
+        mouth = numpy.array([
+            XCarPosition,
+            filament_channel_x + filament_channel_width / 2 - XZStage_offset,
+            (extruder_slice_height + XCarriage_height + thickness
+             + BuildPlatform_height + ZCarPosition + nozzle_tip_distance),
+        ])
+        for axis in range(3):
+            self.assertAlmostEqual(
+                run[-1][axis], mouth[axis], delta=0.01,
+                msg=f'the run does not end at the channel on axis {axis}')
+
+        arriving = run[-1] - run[-2]
+        arriving = arriving / numpy.linalg.norm(arriving)
+        self.assertGreater(
+            -arriving[2], math.cos(math.radians(1)),
+            'the run arrives across the channel rather than down it')
+
+    def test_driving_the_machine_redraws_the_run_and_leaves_the_reel(self):
+        """The far end follows the extruder; the reel does not turn.
+
+        The pair has to be asked together, as the belts' does.  A
+        strand that only moved would be a rigid part badly placed; one
+        that only changed shape would be a shape with no carriage in
+        it; and a strand drawn from a reel that turned with the print
+        head would keep both while being a machine that unwinds when
+        you move the carriage.
+        """
+        # Halfway along the last span: the free run is pinned where it
+        # crosses the frame, so what has to be redrawn is what comes
+        # after that, and the middle of the whole run would be sitting
+        # on the pin.
+        between = filament.PATH_SAMPLES + filament.PATH_SAMPLES // 2
+
+        for driven, offset in ((dict(x=XCarPosition + 40), [40, 0, 0]),
+                               (dict(z=ZCarPosition - 30), [0, 0, -30])):
+            self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
+            coil, run = self.strand_parts()
+            was_coil, was_end, was_between = (coil.copy(), run[-1].copy(),
+                                              run[between].copy())
+            was_pin = run[filament.PATH_SAMPLES].copy()
+
+            self.drive(**driven)
+            coil, run = self.strand_parts()
+
+            numpy.testing.assert_allclose(
+                coil, was_coil, atol=self.PLACED,
+                err_msg='the reel turned when the print head moved')
+            numpy.testing.assert_allclose(
+                run[filament.PATH_SAMPLES], was_pin, atol=self.PLACED,
+                err_msg='the run no longer crosses the frame where it is '
+                        'pinned')
+            for axis in range(3):
+                self.assertAlmostEqual(
+                    run[-1][axis], was_end[axis] + offset[axis],
+                    delta=self.PLACED,
+                    msg=f'the run does not end on the extruder, axis {axis}')
+
+            moved = numpy.linalg.norm(run[between] - was_between)
+            self.assertGreater(
+                moved, self.PLACED,
+                'the run stood still between its pin and its end')
+            self.assertLess(
+                moved, numpy.linalg.norm(offset) - self.PLACED,
+                'the run was carried along whole instead of being redrawn')
+
+    def test_the_filament_is_one_continuous_strand(self):
+        """One closed body of stock, wherever the machine stands.
+
+        Swept from a closed section along a helix continued by a
+        spline, so it is watertight by construction rather than by
+        repair.  What this catches is the construction going wrong: a
+        joint that fell apart between the two, or a section wound the
+        wrong way round.
+        """
+        for driven in ({}, dict(x=self.declared_travel('x')[0]),
+                       dict(x=self.declared_travel('x')[1]),
+                       dict(z=0.0), dict(z=self.declared_travel('z')[1])):
+            self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
+            if driven:
+                self.drive(**driven)
+
+            mesh = self.node.filament.mesh
+            self.assertTrue(mesh.is_watertight,
+                            f'the filament is not a closed strand at {driven}')
+            self.assertEqual(len(mesh.split(only_watertight=False)), 1,
+                             f'the filament came out in pieces at {driven}')
+            self.assertGreater(mesh.volume, 0,
+                               f'the filament is inside out at {driven}')
+
+    def test_the_free_run_gets_over_the_machine_rather_than_through_it(self):
+        """The run crosses the frame instead of passing through it.
+
+        The stand is beside the machine and the extruder is inside it,
+        so the run has a wall of sheet, the beam's own plate and the box
+        at the beam's end between the two.  A run drawn straight from
+        one to the other goes through all three and keeps every other
+        contract here -- it starts on the reel, ends at the channel and
+        redraws itself when the head moves -- which is why this exists.
+
+        Asked at the four corners of the travel and at rest, because
+        where the run passes is a function of both axes: X swings the
+        far end across the beam and Z drops it a hundred and fifty
+        millimetres down inside the frame.
+
+        Two parts of the frame are drawn as more than one shell and
+        cannot be asked for a shared volume at all -- the arc panel and
+        the X ends' plain plates -- so those are asked the weaker
+        question, that the run's centre line keeps a stock's radius off
+        their surface.  A run threaded exactly through the middle of a
+        six millimetre sheet would keep that and is the one thing this
+        is blind to; the sheets either side of them are volumes and are
+        asked properly.
+
+        The extruder's handle plate is left out because the run really
+        does touch it, at the very end and for a reason that is the
+        design's: it stands on the block's top face three tenths of a
+        millimetre inside the channel it is beside.  That is
+        `test_the_run_stops_where_the_machine_leaves_it_room`'s, and it
+        is asked there as the depth it is rather than waved through
+        here as a volume.
+        """
+        handle_plate = self.node.x_stage.carriage.extruder.handle.plate
+        parts = [leaf for group in (self.node.frame, self.node.x_stage)
+                 for leaf in self._leaves(group) if leaf is not handle_plate]
+
+        for driven in ({}, dict(x=self.declared_travel('x')[0]),
+                       dict(x=self.declared_travel('x')[1]),
+                       dict(z=0.0), dict(z=self.declared_travel('z')[1])):
+            self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
+            if driven:
+                self.drive(**driven)
+
+            strand = self.node.filament.mesh
+            reach = strand.bounds
+            for part in parts:
+                mesh = part.mesh
+                if (reach[0] > mesh.bounds[1]).any() or (
+                        mesh.bounds[0] > reach[1]).any():
+                    continue
+                if mesh.is_volume:
+                    shared = trimesh.boolean.intersection([strand, mesh])
+                    volume = 0.0 if shared.is_empty else shared.volume
+                    self.assertEqual(
+                        volume, 0.0,
+                        f'the run cuts {volume} cubic mm out of {part.name} '
+                        f'at {driven or "rest"}')
+                else:
+                    off = trimesh.proximity.closest_point(
+                        mesh, self.strand_parts()[1])[1].min()
+                    self.assertGreater(
+                        off, filament_diameter / 2,
+                        f'the run touches {part.name} at {driven or "rest"}')
+
+    def test_the_run_stops_where_the_machine_leaves_it_room(self):
+        """Why the strand ends at the mouth and not further down.
+
+        Four things, all of them the drawn machine's rather than the
+        filament's, and all asked for rather than described.  The
+        hobbed bolt and the idler bearing are drawn into each other
+        where the stock would be gripped.  The hot end stands on one
+        axis while the extruder cuts its channel on another.  The
+        liner's bore is 3.0 and so is the stock, which is arithmetic
+        and needs no mesh.  And the room runs out at the mouth itself:
+        the handle plate stands on the block's top face inside the
+        channel it is beside, so a strand drawn on the channel's own
+        axis touches it -- by the overhang and no more, which is what
+        the last pair here pins.
+        """
+        extruder = self.node.x_stage.carriage.extruder
+
+        shared = trimesh.boolean.intersection(
+            [extruder.hobbed_bolt.mesh, extruder.idler.bearing.mesh])
+        self.assertGreater(
+            0.0 if shared.is_empty else shared.volume, 0,
+            'the hobbed bolt and the idler bearing no longer share the metal '
+            'the stock would be gripped in, so the run could reach further')
+
+        _, run = self.strand_parts()
+        liner = extruder.hot_end.liner.mesh.bounds
+        self.assertAlmostEqual(
+            run[-1][1] - (liner[0][1] + liner[1][1]) / 2,
+            filament_channel_x + filament_channel_width / 2, delta=0.01,
+            msg='the hot end and the filament channel no longer disagree by '
+                "the offset the design's own slice cuts them at")
+
+        self.assertEqual(
+            PTFE_liner_bore, filament_diameter,
+            'the liner bore and the stock are no longer the same number, so '
+            'the run could be drawn down it')
+
+        # The handle plate stands on the block's top face, beside the
+        # channel and three tenths of a millimetre into it. So the run
+        # touches it, and what has to hold is that it only grazes it:
+        # the deepest the stock goes past the plate's face, over the
+        # plate's own reach, is the overhang and nothing more.
+        plate = extruder.handle.plate.mesh
+        face, axis = plate.bounds[0][1], run[-1][1]
+        overhang = filament_diameter / 2 - (face - axis)
+        self.assertGreater(
+            overhang, 0,
+            'the handle plate no longer overhangs the channel, so the run '
+            'could be drawn clear of it')
+
+        vertices = self.node.filament.mesh.vertices
+        mouth = vertices[-(filament.PROFILE_SAMPLES + 2):-2]
+        self.assertAlmostEqual(
+            (mouth[:, 1] - face).max(), overhang, delta=self.LAID,
+            msg='where the run goes in, it is not the overhang that puts it '
+                'into the handle plate')
+
+        beside = vertices[
+            (vertices[:, 0] > plate.bounds[0][0])
+            & (vertices[:, 0] < plate.bounds[1][0])
+            & (vertices[:, 2] > plate.bounds[0][2])
+            & (vertices[:, 2] < plate.bounds[1][2])]
+        self.assertLess(
+            (beside[:, 1] - face).max(),
+            (plate.bounds[1][1] - plate.bounds[0][1]) / 2,
+            'the run passes through the handle plate rather than grazing the '
+            'edge of it')
+
+    def test_the_filament_travels_into_the_viewer_as_a_shape(self):
+        """The strand is published as its shape, not as a mesh.
+
+        Its expressions have to name the two drivers that move the
+        extruder, or a viewer's sliders would carry the print head away
+        and leave the filament hanging in the air behind it.
+        """
+        with symbolic_document(self.node) as (declarations, _):
+            root = serialize_node(self.node, lambda node: node.stl_file)
+
+            published = self.flexible_nodes(root)['filament']
+            self.assertEqual(published['tech'], 'molejo')
+            self.assertEqual(
+                sorted(published['params']),
+                ['head_x', 'head_y', 'over_x', 'over_y', 'plane'])
+
+            expressions = ' '.join(published['params'].values())
+            for driver in ('x', 'z'):
+                self.assertIn(driver, declarations)
+                self.assertIn(driver, expressions)
+
+    ########################################
     # What the machine can be told to do
 
     def test_the_machine_rests_where_the_design_draws_it(self):
@@ -1794,6 +2216,52 @@ class Metamaquina2Test(TestCase):
         self.assertLess(
             reach, self.SEATED,
             f'{spring.name} stands {reach} mm clear of {part.name}')
+
+    def strand_parts(self):
+        """The filament's own path, as the turns on the reel and the
+        free run, in world coordinates.
+
+        A molejo shape is sampled at the tessellation its document
+        declares rather than at one the evaluator chooses, so the
+        vertices come back ring by ring and the two on the end are the
+        caps.  The path is one helix followed by one spline and the
+        budget is spent per element, so the ring the two meet at is the
+        declared count, and it belongs to both.
+        """
+        vertices = self.node.filament.mesh.vertices
+        rings = vertices[:len(vertices) - 2].reshape(
+            -1, filament.PROFILE_SAMPLES, 3).mean(axis=1)
+        joint = filament.PATH_SAMPLES
+        return rings[:joint + 1], rings[joint:]
+
+    def _leaves(self, node, found=None):
+        """Every leaf under `node`: the parts that have a mesh."""
+        found = [] if found is None else found
+        if node.children:
+            for child in node.children:
+                self._leaves(child, found)
+        else:
+            found.append(node)
+        return found
+
+    def reel_axis(self):
+        """Where the reel's axis runs, measured off the reel.
+
+        As x and z, because the stand is turned to put the bar across
+        the machine and the reel therefore runs along y.  Measured
+        rather than derived: a tube's bounds are centred on its own
+        axis whatever the assembly did with it, and a contract that
+        read the height back out of the stand would follow a placement
+        mistake instead of catching it.
+        """
+        bounds = self.node.spool_holder.spool.mesh.bounds
+        return numpy.array([(bounds[0][0] + bounds[1][0]) / 2,
+                            (bounds[0][2] + bounds[1][2]) / 2])
+
+    def reel_middle(self):
+        """Where the reel's middle stands along its own axis."""
+        bounds = self.node.spool_holder.spool.mesh.bounds
+        return (bounds[0][1] + bounds[1][1]) / 2
 
     def assertRidesOn(self, belt, part):
         """`belt` touches `part` without cutting into it.

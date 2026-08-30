@@ -9,12 +9,32 @@ from metamaquina2.params import (
     belt_offset,
     thickness,
 )
-from metamaquina2.x_stage.carriage.x_carriage import XCarriage
+from metamaquina2.x_stage.carriage.x_carriage import (
+    FILAMENT_ENTRY as ENTRY_ON_THE_CARRIAGE,
+    XCarriage,
+)
 from metamaquina2.x_stage.ends.idler.x_end_idler import XEndIdler
 from metamaquina2.x_stage.ends.motor.x_end_motor import XEndMotor
 from metamaquina2.x_stage.platform_plate import XPlatformPlate
 from metamaquina2.x_stage.x_belt import CLAMP_ORIGIN, XBelt, pulley_angle
 from metamaquina2.x_stage.x_rods import XRods
+
+
+def filament_entry(carriage_position):
+    """Where the filament goes in, in this beam's frame.
+
+    A function of where the carriage is, the way `pulley_angle` is:
+    what the beam knows about the filament is that its far end is on
+    the carriage, and the carriage is drawn from the rest position the
+    design's own knob puts it at.
+
+    Taken here rather than in the machine so the beam that carries the
+    carriage is what says where its extruder's mouth stands, and the
+    machine only adds its own lift.
+    """
+    return [ENTRY_ON_THE_CARRIAGE[0] + carriage_position - XCarPosition,
+            ENTRY_ON_THE_CARRIAGE[1],
+            ENTRY_ON_THE_CARRIAGE[2]]
 
 
 class XStage(AssemblyNode):

@@ -8,7 +8,10 @@ from metamaquina2.hardware.m8_locknut import M8Locknut
 from metamaquina2.hardware.nema17_mount import Nema17Mount
 from metamaquina2.params import (
     extruder_gear_angle,
+    extruder_slice_height,
     extruder_washer_thickness,
+    filament_channel_width,
+    filament_channel_x,
     hobbed_bolt_position,
     jhead_bolt_positions,
     m3_diameter,
@@ -23,6 +26,23 @@ from metamaquina2.x_stage.carriage.extruder.hotend.hot_end import HotEnd
 from metamaquina2.x_stage.carriage.extruder.idler.idler import Idler
 from metamaquina2.x_stage.carriage.extruder.large_gear import ExtruderGear
 from metamaquina2.x_stage.carriage.extruder.small_gear import MotorGear
+
+
+#: Where the filament goes in, in this assembly's own frame.
+#:
+#: The middle slice is cut with a channel for it, and the mouth is
+#: where that channel opens: on the channel's own axis, in the middle
+#: slice, at the top face of a plain slice.  The cut itself is drawn
+#: 70 long, which is an over-run past the profile rather than a height.
+#:
+#: The x is the design's, and it is not nought: `extruder_slice()` cuts
+#: the channel, the two M3 holes that hold the hot end and the
+#: nozzle-holder slot all three tenths of a millimetre to one side,
+#: while the hot end below is drawn on the axis itself.  The two
+#: disagree, the strand follows the channel, and a contract asks for
+#: the difference so it cannot quietly go away.
+FILAMENT_ENTRY = [filament_channel_x + filament_channel_width / 2, 0,
+                  extruder_slice_height]
 
 
 class Extruder(AssemblyNode):

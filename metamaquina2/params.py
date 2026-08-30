@@ -335,7 +335,7 @@ _spool = _probe('FilamentSpoolHolder.scad', [
     'total_width', 'total_height', 'adjust',
     'spool_holder_width', 'top_cut_height', 'top_cut_width',
     'bar_diameter', 'bar_length', 'hole_domed_cap_nut',
-    'sidepanel_TSLOTS',
+    'sidepanel_TSLOTS', 'diameter',
 ])
 
 SpoolHolder_total_width = _spool['total_width']
@@ -348,6 +348,15 @@ SpoolHolder_bar_diameter = _spool['bar_diameter']
 SpoolHolder_bar_length = _spool['bar_length']
 SpoolHolder_cap_nut_hole = _spool['hole_domed_cap_nut']
 SpoolHolder_TSLOTS = _spool['sidepanel_TSLOTS']
+filament_diameter = _spool['diameter']  # the stock the machine is loaded
+                                        # with.  Declared on its own line in
+                                        # the file that draws the reel and
+                                        # used by nothing in it, which is the
+                                        # design saying what the reel holds
+                                        # without drawing any of it.  The
+                                        # liner's own bore and the extruder's
+                                        # channel are both cut for this
+                                        # number; see `filament`.
 
 
 _power_supply = _probe('PowerSupply.scad', [
@@ -411,6 +420,24 @@ jhead_bolt_positions = [       # extruder_slice() in lasercut_extruder.scad:
                                # extruder's own upright frame.  The design
                                # writes them as +-nozzle_hole_width2/2 - 0.3
                                # at height 5, with nozzle_hole_width2 = 14.
+filament_channel_x = -1.9      # extruder_slice() in lasercut_extruder.scad:
+filament_channel_width = 3.2   # the channel it cuts up the middle slice for
+                               # the filament, `translate([-1.9,0])
+                               # square([3.2,70])`, as the x it starts at and
+                               # how wide it is.  Its 70 is not a height: it
+                               # is a cut drawn past the top of the profile so
+                               # that it opens, and where the channel really
+                               # ends is the slice's own top face.
+extruder_slice_height = 58     # extruder_slice() in lasercut_extruder.scad:
+                               # `H`, the height of a plain slice, and so the
+                               # face the filament channel opens through.
+spool_diameter = 160           # FilamentSpool() in FilamentSpoolHolder.scad:
+spool_bore = 35                # the reel it stands on the bar, written as
+spool_width = 160              # bare numbers inside the module -- an annulus
+                               # from 35 to 160 extruded 160 -- and repeated
+                               # in `total_height` and `bar_length` at the top
+                               # of the same file, which is how the stand is
+                               # dimensioned around it.
 
 # The PTFE liner, from PTFE_liner_2d_outline() in PTFE_liner.scad.  That
 # file is a shop drawing rather than a part: its 3D module revolves the

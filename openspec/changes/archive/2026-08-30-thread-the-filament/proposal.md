@@ -42,17 +42,27 @@ design's own Ø160.
   drawn as the strand it is. The tube is what is wound under it, one stock
   diameter smaller on the radius, and reel plus strand still reach the
   design's Ø160 exactly.
-- **The free run's far end arrives through three ports**, and the machine
-  binds them from where it puts its own extruder — the mouth of the design's
-  own filament channel — rather than from a position written down a second
-  time. Driving X or Z redraws the run; the layer on the reel does not move,
-  because a reel does not turn when a print head does.
+- **The free run is pinned at two points and both arrive through ports.** The
+  far end is the mouth of the design's own filament channel, bound from where
+  the machine puts its own extruder rather than from a position written down a
+  second time. The other is where the run gets over the machine: the stand is
+  beside the frame and the extruder is inside it, so a run drawn straight from
+  one to the other goes through the frame's right-hand side panel, the beam's
+  own plate and the box at the beam's end. It crosses at the machine's own
+  edge, two stock diameters above the highest sheet the frame carries, and
+  comes down through the opening the top panel is cut with for the carriage.
+  Five ports rather than six: both points are in the plane the run comes in
+  on, so that plane is one number and it is the same number twice.
+- Driving X or Z redraws the run between its crossing and its end; the
+  crossing and the layer on the reel do not move, because neither the frame
+  nor a reel goes anywhere when a print head does.
 - Where the entry point is is published down the chain that decides it, as
   the handle's placement was for the idler springs: `params` restates the
   channel `extruder_slice()` cuts, `extruder.py` says where it opens in the
   extruder's own frame, `x_carriage.py` in the carriage's, `x_stage.py` in
   the beam's as a function of where the carriage is, and the machine adds its
-  own lift.
+  own lift. The crossing is the frame's own height and width, so it is
+  derived from `machine_height` and `machine_x_dim` and bound by the machine.
 - The filament hangs off the root beside the spool holder rather than inside
   it, because it is the one part of this model that is in two places: it lies
   on a stand that does not move and it ends on a carriage that does.
@@ -67,19 +77,23 @@ Not in this change, and deliberately:
   `machine-motion` and the pilot's call; when it comes, the layer's turn
   count is where it lands.
 - **The run stops at the channel's mouth**, and this is a finding rather than
-  a choice. Below the mouth the drawn machine has no room for stock: the
-  hobbed bolt and the idler bearing are drawn closed on each other, sharing
-  metal where the filament would be, because the design draws the idler shut
-  and gives no knob for opening it — the same reason the idler springs got no
-  driver. Further down, the drawn hot end stands on the filament axis at
-  nought while the design's own extruder cuts its channel, its two M3 holes
-  and its nozzle-holder slot at −0.3, so the two disagree by three tenths of
-  a millimetre about where the filament goes. And below that the PTFE liner's
+  a choice. Four things stand under it, and the first of them is at the mouth
+  itself: the extruder handle's plate stands on the block's top face three
+  tenths of a millimetre inside the channel it is beside, so the machine's own
+  parts leave 2.9 mm of clear channel for 3 mm of stock and a strand drawn on
+  the channel's axis grazes the plate. Below that the hobbed bolt and the
+  idler bearing are drawn closed on each other, sharing metal where the
+  filament would be, because the design draws the idler shut and gives no knob
+  for opening it — the same reason the idler springs got no driver. Further
+  down, the drawn hot end stands on the filament axis at nought while the
+  design's own extruder cuts its channel, its two M3 holes and its
+  nozzle-holder slot at −0.3, so the two disagree by three tenths of a
+  millimetre about where the filament goes. And below that the PTFE liner's
   bore is 3.0 and the stock is 3.0, which is a bore the size of what runs
-  down it and not a fit anything can be drawn in. All three are recorded
-  where the run ends and asked for by contract, so none of them can quietly
-  go away; settling any of them is a change to the design or to the hot end,
-  not to the filament.
+  down it and not a fit anything can be drawn in. All four are recorded where
+  the run ends and asked for by contract, so none of them can quietly go away;
+  settling any of them is a change to the design or to the hot end, not to the
+  filament.
 - **No second layer.** A molejo helix winds about the tangent it starts on,
   so a second helix chained after one starts on the first's own pitch angle
   and does not come out coaxial — a full reel is not expressible as one
