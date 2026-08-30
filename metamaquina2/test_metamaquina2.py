@@ -65,9 +65,11 @@ from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
+    PulleyRadius,
     XCarPosition,
     YCarPosition,
     ZCarPosition,
+    belt_width,
 )
 from metamaquina2.x_stage import x_belt
 from metamaquina2.y_axis import y_belt
@@ -110,12 +112,22 @@ class Metamaquina2Test(TestCase):
     # altogether is millimetres away, not hundredths.
     MESHED = GT2Pulley.CLEARANCE
 
-    # A GT2 pulley of this machine reaches 6.01 mm from its axis on a
-    # 5 mm shaft, so every point of it is within 3.6 mm of the shaft's
+    # A GT2 pulley of this machine reaches 4.74 mm from its axis on a
+    # 5 mm shaft, so every point of it is within 2.3 mm of the shaft's
     # own surface.  Four separates that from a pulley knocked off the
     # shaft by even a couple of millimetres, and does it without
     # depending on how a cylinder tessellates.
     ON_THE_SHAFT = 4
+
+    # The pulley the bill of materials buys for both belt motors: "GT2
+    # pulley 6mm x 16 teeth", ref GT2P6x16_Al.  Sixteen teeth, and six
+    # millimetres of belt width.  Nothing in the design is derived from
+    # either number -- the line is a string passed to the BOM and the
+    # module under it draws nothing -- so they are written out here to
+    # be asked of the metal and of the dimensions the design puts its
+    # belt at.
+    BOUGHT_TEETH = 16
+    BOUGHT_WIDTH = 6
 
     # Positions spent crossing one tooth, for a contract that has to
     # hold at every phase of the mesh rather than at the rest pose.
@@ -417,7 +429,106 @@ class Metamaquina2Test(TestCase):
     ########################################
     # The pulleys, which go nowhere and turn
 
-    def test_each_motor_pulley_stands_in_its_belts_plane(self):
+    def test_each_motor_pulley_is_the_one_the_bill_of_materials_buys(self):
+        """Both pulleys are the bought part, measured off the metal.
+
+        Two numbers, because the BOM line carries two: "GT2 pulley 6mm
+        x 16 teeth".  How far the drawn part reaches from its own axis
+        is what says it has sixteen teeth and not some other count --
+        at a fixed pitch a tooth count is a radius -- and it is asked
+        of the mesh rather than of the constant the outline was built
+        from, so a pulley that agreed in Python and came out of the
+        polygon at another size would still fail.  How wide it stands
+        along its own axis is the other number.
+
+        The X one is cut at its own belt's pitch rather than at the
+        nominal 2 mm, so its radius is asked at that pitch: a bought
+        part is 16 teeth of GT2 either way, and which pitch it was
+        drawn at is the drawing's business.
+        """
+        self.assertEqual(
+            TEETH, self.BOUGHT_TEETH,
+            'the pulleys are not the tooth count the machine buys')
+
+        for pulley, period in (
+                (self.node.x_stage.end_motor.belt_side.pulley,
+                 x_belt.PERIOD),
+                (self.node.y_axis.motor.pulley, gt2.PITCH)):
+            axis = int(numpy.argmin(numpy.ptp(pulley.mesh.bounds, axis=0)))
+            across = [index for index in range(3) if index != axis]
+
+            width = numpy.ptp(pulley.mesh.bounds[:, axis])
+            self.assertAlmostEqual(
+                width, self.BOUGHT_WIDTH, delta=self.PLACED,
+                msg=(f'{pulley.name} stands {width} mm wide, not the '
+                     f'{self.BOUGHT_WIDTH} mm the bill of materials buys'))
+
+            centre = pulley.mesh.bounds[:, across].mean(axis=0)
+            reach = numpy.linalg.norm(
+                pulley.mesh.vertices[:, across] - centre, axis=1).max()
+            flanks = gt2.pulley_radius(self.BOUGHT_TEETH, period)
+            self.assertAlmostEqual(
+                reach, flanks - GT2Pulley.CLEARANCE, delta=self.PLACED,
+                msg=(f'{pulley.name} reaches {reach} mm from its axis, not '
+                     f'the {flanks - GT2Pulley.CLEARANCE} of a '
+                     f'{self.BOUGHT_TEETH} tooth GT2 pulley'))
+
+    def test_the_x_end_is_dimensioned_for_the_pulley_it_buys(self):
+        """The design's own heights stand the belt where that pulley
+        holds it.
+
+        `PulleyRadius` is not decoration: `XIdler_height` is derived
+        from it so the run comes off both ends level, and
+        `X_rod_height` so the carriage's clamps meet the belt where it
+        runs.  So it has to be the radius the bought pulley really
+        carries a belt at, and a round 6 is not that radius for any
+        tooth count -- it is a millimetre and a sixth outside the 16
+        tooth pulley the same design buys, and a tenth inside the 20
+        tooth one it does not.
+
+        Asked three ways.  Which pulley the number names, which reads a
+        radius back as a tooth count and is how the round 6 was caught
+        in the first place.  Then the radius exactly, because that is
+        what the two heights are computed from and what the cut plates
+        therefore carry.  Then of the belt itself, above the pulley's
+        own axis, where the loop's inner surface is riding on the
+        flanks: it must be at that radius, plus the belt's back beyond
+        it.  The last is the one that says the drawing agrees with the
+        arithmetic -- a design number nothing was drawn at would pass
+        the other two.
+        """
+        named = gt2.pulley_teeth(PulleyRadius)
+        self.assertEqual(
+            named, self.BOUGHT_TEETH,
+            f'the X end is dimensioned for a {named} tooth pulley, and the '
+            f'machine buys a {self.BOUGHT_TEETH} tooth one')
+
+        bought = gt2.pulley_radius(self.BOUGHT_TEETH)
+        self.assertAlmostEqual(
+            PulleyRadius, bought, delta=self.PLACED,
+            msg=(f'the X end is dimensioned for a pulley of radius '
+                 f'{PulleyRadius}, but the one bought rides its belt at '
+                 f'{bought} mm'))
+
+        belt = self.node.x_stage.belt
+        pulley = self.node.x_stage.end_motor.belt_side.pulley
+        axis = pulley.mesh.bounds.mean(axis=0)
+
+        over = numpy.abs(belt.mesh.vertices[:, 0] - axis[0]) < 0.2
+        back = belt.mesh.vertices[over][:, 2].max() - axis[2]
+        rides = PulleyRadius + gt2.THICKNESS - gt2.TOOTH_HEIGHT
+        # A hundredth: the loop is cut to its own pitch rather than the
+        # standard's, which puts its flanks a micron inside the design's
+        # number, and the run leaves the top of the pulley at a slope
+        # that costs another fraction of one across the window sampled.
+        # Both are orders below the millimetre and a sixth a round 6 is
+        # out by.
+        self.assertAlmostEqual(
+            back, rides, delta=0.01,
+            msg=(f'over the pulley the belt runs {back} mm out from its '
+                 f'axis, where the X end is dimensioned for {rides}'))
+
+    def test_each_motor_pulley_straddles_the_belt_it_drives(self):
         """A pulley is across the belt it drives, not beside it.
 
         The design gets both of these wrong, and could not have seen
@@ -428,20 +539,26 @@ class Metamaquina2Test(TestCase):
         Both are placed from their belt here instead, so both are asked
         the question the design was never in a position to fail.
 
-        Each pulley is exactly as wide as its belt, so this is an
-        equality and not a containment: the two have to start and stop
-        together along the axis the pulley turns about.
+        A containment with the overhang named, rather than an equality,
+        because the pulley is the wider of the two: the machine buys a
+        6 mm pulley and draws a 5 mm belt.  That is a mismatch inside
+        the design's own bill of materials -- it buys 6 mm belt too --
+        and not one to be drawn out of, so the belt runs half a
+        millimetre inside the pulley at each side and is asked to be
+        centred there.
         """
+        proud = (self.BOUGHT_WIDTH - belt_width) / 2
         for pulley, belt, axis in (
                 (self.node.x_stage.end_motor.belt_side.pulley,
                  self.node.x_stage.belt, 1),
                 (self.node.y_axis.motor.pulley,
                  self.node.y_axis.belt, 0)):
+            run = belt.mesh.bounds[:, axis]
             numpy.testing.assert_allclose(
-                pulley.mesh.bounds[:, axis], belt.mesh.bounds[:, axis],
+                pulley.mesh.bounds[:, axis], [run[0] - proud, run[1] + proud],
                 atol=self.PLACED,
-                err_msg=(f'{pulley.name} does not stand in the plane '
-                         f'{belt.name} runs in'))
+                err_msg=(f'{pulley.name} does not straddle {belt.name} '
+                         f'where it runs'))
 
     def test_the_x_pulley_meshes_with_its_belt(self):
         """The belt's teeth sit in the pulley's grooves, everywhere the
@@ -502,7 +619,7 @@ class Metamaquina2Test(TestCase):
         is bolted near.
 
         And a pulley goes nowhere, which the two turns have to be
-        asked differently because a pulley is only twenty-fold
+        asked differently because a pulley is only sixteen-fold
         symmetric.  A whole groove of turn puts every tooth where the
         one before it stood, so the bounds come back exactly; a quarter
         groove moves them, and what stays is the axis they are centred

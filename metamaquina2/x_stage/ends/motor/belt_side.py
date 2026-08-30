@@ -3,12 +3,13 @@ pulley."""
 
 from solid_node.node import AssemblyNode, RotationalPort
 
-from metamaquina2.hardware.gt2_pulley import GT2Pulley
+from metamaquina2.hardware.gt2_pulley import WIDTH, GT2Pulley
 from metamaquina2.hardware.nema17_mount import Nema17Mount
 from metamaquina2.params import (
     XEnd_box_size,
     XMotor_height,
     belt_offset,
+    belt_width,
     thickness,
 )
 from metamaquina2.x_stage.ends.motor.belt_plate import XEndMotorBeltPlate
@@ -25,7 +26,11 @@ from metamaquina2.x_stage.x_belt import PERIOD
 #: half a thickness proud of the box, the belt runs `belt_offset` in
 #: from the same face and one thickness back, and the difference
 #: between those is where the belt is.  A pulley is where its belt is.
-PULLEY_DEPTH = belt_offset - 1.5 * thickness
+#:
+#: Where the belt is, and centred on it: the bought pulley is 6 mm wide
+#: and the design's belt 5, so the metal starts half a millimetre
+#: before the rubber and ends half a millimetre after it.
+PULLEY_DEPTH = belt_offset - 1.5 * thickness - (WIDTH - belt_width) / 2
 
 
 class XEndMotorBeltSide(AssemblyNode):
@@ -61,9 +66,9 @@ class XEndMotorBeltSide(AssemblyNode):
         """Turn the pulley to where the belt's teeth are, and put it on
         the shaft.
 
-        Drawn from nought to `belt_width` along its own axis, exactly as
-        the belt's section is, so `PULLEY_DEPTH` alone lands the two in
-        one plane.
+        Drawn from nought to its own width along its axis, as the belt's
+        section is along its own, so `PULLEY_DEPTH` alone lands the two
+        in one plane.
         """
         self.pulley.rotate(self.shaft.value, [0, 0, 1])
         self.pulley.translate(

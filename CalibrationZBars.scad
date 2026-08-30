@@ -167,7 +167,14 @@ nozzle_hole_length = machine_x_dim - 2*XEnd_box_size - nozzle_hole_width - 2*thi
 belt_offset = 26;
 belt_width=5;
 belt_clamp_height = 9;
-PulleyRadius = 6;
+//The radius the X belt rides at on the motor pulley.
+//The bill of materials buys "GT2 pulley 6mm x 16 teeth"
+//(ref GT2P6x16_Al): sixteen 2mm teeth make a 10.186mm pitch
+//circle, and a GT2 belt's pitch line runs 0.254mm above the
+//flanks its inner face rides on.  XIdler_height and
+//X_rod_height are both derived from this, so it has to be that
+//pulley's radius and not a round number near it.
+PulleyRadius = 16*2/(2*PI) - 0.254;
 IdlerRadius = 11;
 XMotor_height = 31;
 XIdler_height = XMotor_height + PulleyRadius - IdlerRadius;

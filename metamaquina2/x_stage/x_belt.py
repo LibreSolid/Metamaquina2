@@ -62,17 +62,18 @@ def _meshed_radius():
         radius = closer
 
 
-#: Where the pulley's flanks really stand: 6.111, not the 6 the design
-#: writes down.
+#: Where the pulley's flanks stand: 4.839, within a micron of the
+#: `PulleyRadius` the design now derives the whole X end from.
 #:
-#: `PulleyRadius` is a round number, and a round number is not a pulley.
-#: The belt was drawn around it while there was no pulley to disagree --
-#: the design's module draws nothing -- and 6 asks for 19.66 teeth,
-#: which is not something anybody cuts.  So the radius is derived from
-#: the tooth count nearest it, exactly as the Y belt's height is derived
-#: from the bars it runs on rather than read off the literal the design
-#: writes beside them.  The idler end keeps the design's own radius,
-#: because a 608 bearing really is 11 mm and has nothing to mesh.
+#: Derived here from the tooth count rather than read off `params`, and
+#: the two agreeing is a contract the tests hold rather than a
+#: coincidence.  They did not agree before: the design wrote a round 6,
+#: which is no pulley at all -- it asks for 19.66 teeth -- and the belt
+#: was drawn around it because there was no pulley to disagree, the
+#: design's module drawing nothing.  What the design buys is a 16 tooth
+#: pulley, and the number was corrected to it.  The idler end keeps the
+#: design's own radius, because a 608 bearing really is 11 mm and has
+#: nothing to mesh.
 PULLEY_RADIUS = _meshed_radius()
 
 #: The pitch circles, ordered clockwise seen from +Z, which is the order

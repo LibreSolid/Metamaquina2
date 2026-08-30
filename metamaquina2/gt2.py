@@ -86,13 +86,20 @@ The X belt is drawn meshed on a pulley, so the pulley had to become a
 part rather than a radius, and asking which pulley it is turned up
 three more things the stub had hidden.
 
-* `PulleyRadius` is 6, and 6 is not a GT2 pulley.  A belt meshed on it
-  wraps a pitch circle of 6.254, which carries 19.66 teeth -- and a
-  pulley has a whole number of them or it does not mesh.  The whole
-  number nearest what the design drew is 20, whose flanks stand at
-  6.111, so the belt is drawn 0.111 mm further out at the motor end
-  than the round number said.  See `pulley_teeth`, and
-  `x_stage.x_belt.PULLEY_RADIUS` for the loop that closes on it.
+* `PulleyRadius` was 6, and 6 is not a GT2 pulley.  A belt meshed on
+  it wraps a pitch circle of 6.254, which carries 19.66 teeth -- and a
+  pulley has a whole number of them or it does not mesh.  Which pulley
+  it should have been is not a matter of rounding, because the design
+  says: it buys "GT2 pulley 6mm x 16 teeth" at each belt motor, and
+  sixteen teeth ride a belt at 4.839.  A round 6 is a millimetre and a
+  sixth outside that -- the belt line the whole X end is dimensioned
+  from, since `XIdler_height` and `X_rod_height` are both derived from
+  this number.  So the design now derives it too, from the sixteen
+  teeth it buys, and those two heights came down 1.161 mm with it.
+  The design's own `XBelt` had the 6 a second time as a literal, where
+  the parameter belongs, so it could not have followed; it does now.
+  See `pulley_teeth`, and `x_stage.x_belt.PULLEY_RADIUS` for the loop
+  that closes on it.
 * Both pulleys are placed somewhere their belt is not.  The X one is
   put one `thickness` off the plate it hangs behind, 6 mm out of the
   plane its own belt runs in; the Y one is left at the origin of the
@@ -122,6 +129,15 @@ not to have a number in it that nothing chose.
 The Y motor gets the same part and no mesh: the loop the design draws
 runs on three bare bearings and never reaches the motor, so there is
 nothing for those teeth to engage and nothing to derive an angle from.
+
+One mismatch between the design and its own bill of materials is left
+standing, because it is the design's to settle: the BOM buys 6 mm belt
+and 6 mm pulleys, and `belt_width` is 5.  The pulleys are drawn at the
+6 mm they are bought at, since that is the part; the belts are left at
+the width the design draws, since that width places the carriage's
+clamps and the idler's slot and nothing says which of the two numbers
+was meant.  So each pulley stands half a millimetre proud of its belt
+on either side, which is what a pulley wider than its belt looks like.
 """
 
 import math
@@ -218,8 +234,10 @@ def pulley_teeth(radius):
     pitch circle the belt runs on, and that circle carries a whole
     number of nominal pitches.  A design that writes a pulley down as a
     radius rather than as a tooth count -- as this one does, in
-    `PulleyRadius` -- has named it by the wrong number, and this is
-    which pulley it named.
+    `PulleyRadius` -- has named it by a number that can name no pulley
+    at all, and this says which one it did name.  That is how the round
+    6 was caught, and it is how the number that replaced it is checked
+    against the pulley the bill of materials buys.
     """
     return round(2 * math.pi * (radius + PITCH_LINE) / PITCH)
 

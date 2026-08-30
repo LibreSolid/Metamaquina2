@@ -5,23 +5,31 @@ import math
 from solid2 import polygon
 
 from metamaquina2 import gt2, materials
-from metamaquina2.params import PulleyRadius, belt_width, motor_shaft_diameter
+from metamaquina2.params import motor_shaft_diameter
 from metamaquina2.part import ScadPart, curve
 
 
 #: How many teeth the pulley of this machine has.
 #:
-#: The design never says.  It writes `PulleyRadius = 6` and buys "GT2
-#: pulley 6mm x 16 teeth" in the bill of materials, and those are two
-#: different pulleys: 16 teeth put the flanks at 4.836, more than a
-#: millimetre inside the radius the design draws its belt around, while
-#: 6 is 0.112 short of the 20 tooth pulley it very nearly is.  The
-#: geometry is what the rest of the machine is built on -- `XIdler_height`
-#: and `X_rod_height` are both derived from `PulleyRadius` -- and the
-#: BOM line is a string nothing is derived from, which also calls the
-#: belt 6 mm wide where `belt_width` is 5.  So the geometry is taken as
-#: the design's real intent and the tooth count follows from it.
-TEETH = gt2.pulley_teeth(PulleyRadius)
+#: Sixteen, because that is the pulley the machine buys: "GT2 pulley
+#: 6mm x 16 teeth", ref GT2P6x16_Al, called out once at each belt
+#: motor.  Nothing in the design was derived from that line -- it is a
+#: string handed to the bill of materials from inside a module that
+#: draws nothing -- and the number the design did derive from,
+#: `PulleyRadius`, said 6, which is no pulley at all.  The bought part
+#: is the one that ends up on the shaft, so the design was corrected to
+#: it rather than the other way about, and `PulleyRadius` is now 4.839:
+#: where sixteen GT2 teeth carry a belt.
+TEETH = 16
+
+#: How wide it is, in millimetres of belt.
+#:
+#: The other half of the same BOM line.  A 6 mm pulley is what is
+#: bought, and the design draws a 5 mm belt while buying 6 mm belt too,
+#: so the part is drawn at its own width and stands half a millimetre
+#: proud of the belt on each side.  Which of those two widths the
+#: design meant is not this part's to decide; see `gt2`.
+WIDTH = 6
 
 
 class GT2Pulley(ScadPart):
@@ -54,7 +62,7 @@ class GT2Pulley(ScadPart):
 
     No flanges.  A real GT2 pulley has them and the design gives no
     dimension for them, so the part is drawn as the toothed body alone,
-    exactly as wide as the belt it carries.
+    at the width the bill of materials buys it at.
     """
 
     color = materials.METAL
@@ -62,9 +70,10 @@ class GT2Pulley(ScadPart):
     #: How much smaller than the belt's inner surface the pulley is cut.
     #:
     #: A pulley drawn exactly on that surface is not wrong so much as
-    #: over-precise: it claims the two parts share sixteen square
-    #: millimetres of skin, which no pulley is machined to and no belt
-    #: is moulded to, and which a real belt takes up by flexing onto
+    #: over-precise: it claims the two parts share every square
+    #: millimetre of skin they meet on, which no pulley is machined to
+    #: and no belt is moulded to, and which a real belt takes up by
+    #: flexing onto
     #: whatever it finds -- that is what the rubber is for.  It is also
     #: a claim no mesh can hold: coincident surfaces come out of a
     #: boolean as slivers with a volume, so a drawing that puts them
@@ -92,7 +101,7 @@ class GT2Pulley(ScadPart):
     #: so this is also where the corners between them fall: a multiple
     #: of four puts a point on each of them, which is what keeps a chord
     #: from cutting a corner off the floor or the land.  Sixteen brings
-    #: twenty teeth to 1280 points, about sixteen times finer than the
+    #: sixteen teeth to 1024 points, about sixteen times finer than the
     #: design's own `$fs` would draw a circle this size, and it is what
     #: sets the flank clearance: `gt2.groove` sinks every point to the
     #: deepest of its own step, so a coarser outline would be a slacker
@@ -102,7 +111,7 @@ class GT2Pulley(ScadPart):
     #: is made with.
     SAMPLES = 16
 
-    def __init__(self, period=gt2.PITCH, teeth=TEETH, width=belt_width,
+    def __init__(self, period=gt2.PITCH, teeth=TEETH, width=WIDTH,
                  bore=motor_shaft_diameter, **kwargs):
         self.period = period
         self.teeth = teeth

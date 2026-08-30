@@ -2,12 +2,11 @@
 
 from solid_node.node import AssemblyNode
 
-from metamaquina2.hardware.gt2_pulley import GT2Pulley
+from metamaquina2.hardware.gt2_pulley import WIDTH, GT2Pulley
 from metamaquina2.hardware.nema17_mount import Nema17Mount
 from metamaquina2.params import (
     RightPanel_basewidth,
     bar_cut_length,
-    belt_width,
     feetheight,
 )
 from metamaquina2.y_axis.motor.motor_holder import YMotorHolder
@@ -48,7 +47,11 @@ class YMotor(AssemblyNode):
     #: which the mount turns onto the machine's X -- and the belt runs
     #: in a band `belt_width` wide centred on that plane.  The shaft is
     #: 24 mm long, so it reaches, with 7 mm to spare.
-    pulley_depth = 7 + 7 - belt_width / 2
+    #:
+    #: This is that plane itself rather than an edge of the band, so
+    #: the pulley can be hung on it by its own middle: it is 6 mm wide
+    #: where the design's belt is 5.
+    pulley_depth = 7 + 7
 
     def __init__(self, *args, **kwargs):
         def mounted(node):
@@ -74,7 +77,7 @@ class YMotor(AssemblyNode):
         # drawn from nought to its own width has to be sent the far
         # side of where it sits.
         self.pulley = on_motor(
-            GT2Pulley().translate([0, 0, -self.pulley_depth - belt_width]))
+            GT2Pulley().translate([0, 0, -self.pulley_depth - WIDTH / 2]))
 
         super().__init__(*args, **kwargs)
 
