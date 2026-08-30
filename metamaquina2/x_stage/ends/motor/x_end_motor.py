@@ -4,6 +4,7 @@ from solid_node.node import AssemblyNode, RotationalPort
 
 from metamaquina2.frame.tslot_bolt import TSlotBolt
 from metamaquina2.hardware.lm8uu import LM8UU
+from metamaquina2.hardware.m8_nut import M8Nut
 from metamaquina2.params import (
     XEndMotor_back_face_TSLOTS,
     XEnd_box_size,
@@ -23,15 +24,23 @@ from metamaquina2.x_stage.ends.motor.back_plate import XEndMotorBackPlate
 from metamaquina2.x_stage.ends.motor.belt_side import XEndMotorBeltSide
 from metamaquina2.x_stage.ends.motor.plain_plate import XEndMotorPlainPlate
 from metamaquina2.x_stage.ends.zlink import ZLink
+from metamaquina2.z_screw import NUT_SEAT
 
 
 class XEndMotor(AssemblyNode):
     """The box at the left of the X beam.
 
     Five plates bolted into a box, two Z bearings clamped inside it by
-    the sandwich, a Z link on the outside, and the X motor and its
-    pulley on the belt side.  The whole thing sits at the far left of
-    the machine.
+    the sandwich, a Z link on the outside with the M8 nut that carries
+    this end of the beam captive in it, and the X motor and its pulley
+    on the belt side.  The whole thing sits at the far left of the
+    machine.
+
+    The nut is the load path and is placed as one: it stands on the Z
+    bar's own axis with its top face against the Z link's captive
+    plate, which is what the weight of the beam comes down on.  Where
+    that is, `z_screw` says, because the machine has to turn the bars
+    to the phase that puts a thread under it.
 
     `shaft` passes straight through to the belt side, which is where
     the pulley is.  The box has nothing to say about the angle -- it is
@@ -90,6 +99,11 @@ class XEndMotor(AssemblyNode):
                         0,
                         thickness + Zlink_hole_height]))
 
+        self.nut = on_machine(
+            M8Nut().translate(
+                [thickness + lm8uu_diameter / 2 + z_rod_z_bar_distance,
+                 0, NUT_SEAT]))
+
         self.bearings = [
             on_machine(
                 LM8UU()
@@ -106,5 +120,5 @@ class XEndMotor(AssemblyNode):
 
         return ([self.back_plate] + self.back_joints
                 + [self.bearing_sandwich, self.front_plate,
-                   self.plain_plate, self.belt_side, self.zlink]
+                   self.plain_plate, self.belt_side, self.zlink, self.nut]
                 + self.bearings)

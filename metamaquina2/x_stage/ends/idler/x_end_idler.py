@@ -4,6 +4,7 @@ from solid_node.node import AssemblyNode
 
 from metamaquina2.frame.tslot_bolt import TSlotBolt
 from metamaquina2.hardware.lm8uu import LM8UU
+from metamaquina2.hardware.m8_nut import M8Nut
 from metamaquina2.params import (
     XEndIdler_back_face_TSLOTS,
     XEnd_box_size,
@@ -25,6 +26,7 @@ from metamaquina2.x_stage.ends.idler.belt_plate import XEndIdlerBeltPlate
 from metamaquina2.x_stage.ends.idler.idler_pulley import XIdlerPulley
 from metamaquina2.x_stage.ends.idler.plain_plate import XEndIdlerPlainPlate
 from metamaquina2.x_stage.ends.zlink import ZLink
+from metamaquina2.z_screw import NUT_SEAT
 
 
 class XEndIdler(AssemblyNode):
@@ -35,6 +37,11 @@ class XEndIdler(AssemblyNode):
     motor end's mirrored: the design writes them with `mirror`, and a
     bearing is a cylinder about its own axis, so negating the offset
     is the same geometry.
+
+    Its Z nut mirrors the same way and for a better reason than
+    symmetry: the two bars turn together, so the two nuts have to be at
+    the same height on them or the beam would rack.  Both are placed
+    from `z_screw`, which is the one place that height is written down.
     """
 
     def __init__(self, *args, **kwargs):
@@ -99,6 +106,11 @@ class XEndIdler(AssemblyNode):
                         0,
                         thickness + Zlink_hole_height]))
 
+        self.nut = on_machine(
+            M8Nut().translate(
+                [-(thickness + lm8uu_diameter / 2 + z_rod_z_bar_distance),
+                 0, NUT_SEAT]))
+
         self.bearings = [
             on_machine(
                 LM8UU()
@@ -114,5 +126,5 @@ class XEndIdler(AssemblyNode):
         return ([self.back_plate] + self.back_joints
                 + [self.bearing_sandwich, self.front_plate,
                    self.plain_plate, self.belt_plate, self.idler,
-                   self.zlink]
+                   self.zlink, self.nut]
                 + self.bearings)

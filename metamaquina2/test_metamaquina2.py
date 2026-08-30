@@ -15,6 +15,17 @@ fail too.  The rod contracts are then asked again at both ends of the
 declared travel, which is the same question the rest pose already
 answered, put to a machine in motion.
 
+The Z axis is asked something else again, because it is the one axis
+whose driver is not a position.  A nut on a bar is a pair of parts that
+must be inside each other's reach and out of each other's metal at the
+same time, at every height and not only at the ones that happen to fall
+on a whole pitch; and it must be a nut, which is to say it must not be
+able to travel along the bar unless the bar turns.  Those are asked of
+the exact solids rather than of two meshes, because that is what a
+boundary kernel is for: the gap between a thread and its nut is a tenth
+of a millimetre, and a tessellation is entitled to be wrong by that
+much.
+
 The two belts are the one place where where-a-part-is-put is the wrong
 question altogether.  A belt does not go anywhere -- both ends of each
 loop are bolted down -- and yet it is not still: the rubber inside the
@@ -60,7 +71,7 @@ from solid_node.core.serializer import (
 from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
-from metamaquina2 import gt2
+from metamaquina2 import gt2, thread, z_screw
 from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
     BuildVolume_X,
@@ -68,6 +79,7 @@ from metamaquina2.params import (
     IdlerRadius,
     PulleyRadius,
     XCarPosition,
+    XZStage_offset,
     YCarPosition,
     ZCarPosition,
     belt_width,
@@ -151,6 +163,32 @@ class Metamaquina2Test(TestCase):
     # minimum.
     NEARBY = 15
 
+    # An M8 nut is 14 mm across the flats on an 8 mm bar, so its
+    # furthest corner is 8.1 mm off the axis and a bit over 4 mm out
+    # from the crest of the thread it is threaded onto. Five separates
+    # that from a nut hanging even a millimetre clear of its bar,
+    # without depending on how a helix tessellates.
+    ON_THE_BAR = 5
+
+    # How far a Z nut may slide along its bar before the thread has to
+    # stop it, and how far it may certainly not. The clearance the pair
+    # is drawn with is a flank clearance, so the axial play it allows is
+    # that much divided by the cosine of the flank angle -- 58 microns
+    # here. Half of it must be free, because a fit that never touches
+    # would pass the blocking half of this contract while being a hole;
+    # twice it must foul, and by then the flanks are a good 30 microns
+    # into each other, which no rounding reaches.
+    Z_NUT_PLAY = thread.CLEARANCE / math.cos(math.radians(30)) / 2
+    Z_NUT_STOP = thread.CLEARANCE / math.cos(math.radians(30)) * 2
+
+    # A height in the middle of the Z travel that is deliberately NOT a
+    # whole number of pitches up. A nut and a bar drawn with the wrong
+    # sign on the turn, or with no turn at all, still line up wherever
+    # the lift happens to be a whole number of leads -- the rest pose is
+    # one such place and so is the bottom of the travel -- so the
+    # question has to be asked somewhere between two threads.
+    OFF_PITCH = 111.7
+
     # Which element of the Y loop wraps which of its four circles. A
     # wrap runs span, arc, span, arc from the first circle, so the arc
     # about circle n is element 2n - 1, and `y_belt` lists them front,
@@ -167,7 +205,7 @@ class Metamaquina2Test(TestCase):
         not the machine's own drivers, so a test that drives an axis
         would otherwise hand the next one a machine still driven.
         """
-        self.node.set_state(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
+        self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
 
     def test_x_carriage_rides_the_x_rods(self):
         """Every carriage bearing is on a rod.
@@ -274,7 +312,7 @@ class Metamaquina2Test(TestCase):
         carriage_at_rest = carriage.mesh.bounds
         reference_at_rest = reference.mesh.bounds
 
-        self.node.set_state(z=ZCarPosition - 90)
+        self.drive(z=ZCarPosition - 90)
 
         self.assertMovedBy(beam, beam_at_rest, [0, 0, -90])
         self.assertMovedBy(carriage, carriage_at_rest, [0, 0, -90])
@@ -313,7 +351,7 @@ class Metamaquina2Test(TestCase):
         ends = (self.node.x_stage.end_motor, self.node.x_stage.end_idler)
 
         for height in self.declared_travel('z'):
-            self.node.set_state(z=height)
+            self.drive(z=height)
             self.assertMovedBy(beam, at_rest, [0, 0, height - ZCarPosition])
             for end in ends:
                 for bearing in end.bearings:
@@ -881,13 +919,18 @@ class Metamaquina2Test(TestCase):
 
         The three drivers took their defaults from the car positions
         the .scad file sets, so a model nobody has driven is the model
-        that repository has always rendered.
+        that repository has always rendered.  Z says it in degrees of
+        screw, because that is what Z's state is, and the height those
+        degrees are worth is the one the .scad file draws.
         """
         simulation = Sim(self.node, self.TICK)
 
-        self.assertEqual(simulation.state, {'x': XCarPosition,
-                                            'y': YCarPosition,
-                                            'z': ZCarPosition})
+        self.assertEqual(simulation.state,
+                         {'x': XCarPosition,
+                          'y': YCarPosition,
+                          'z': z_screw.angle(ZCarPosition)})
+        self.assertAlmostEqual(z_screw.lift(simulation.state['z']),
+                               ZCarPosition, delta=self.PLACED)
 
     def test_every_instruction_lands_on_the_position_it_names(self):
         """An instruction puts an axis where its name says it goes.
@@ -896,6 +939,11 @@ class Metamaquina2Test(TestCase):
         they aim at, so their targets have to resolve against the
         machine's own `x`, `y` and `z` -- the same three bare names
         that put three sliders in front of whoever opens the model.
+
+        A target is in millimetres and a driver's state need not be, so
+        the two are compared through the declaration that knows the
+        difference.  That is the whole of what `scale` buys: an
+        instruction says where to go and stays out of the machinery.
         """
         for name, instruction in type(self.node).instructions.items():
             simulation = Sim(self.node, self.TICK)
@@ -904,11 +952,181 @@ class Metamaquina2Test(TestCase):
             simulation.run(instruction.duration)
 
             for driver, target in instruction.targets.items():
+                native = getattr(type(self.node), driver).native(target)
                 self.assertAlmostEqual(
-                    simulation.state[driver], target, delta=self.PLACED,
+                    simulation.state[driver], native, delta=self.PLACED,
                     msg=f'{name} should leave {driver} at {target}')
 
+    def test_homing_z_winds_the_beam_down_to_the_build_surface(self):
+        """`HomeZ` goes to the bottom, and takes a screw's time to.
+
+        Home on this axis is nought -- the endstop is under the beam,
+        not over it -- so this asks for the bottom of the travel and
+        not the top, and asks the beam rather than the driver: the
+        nozzle really has to arrive at the build surface.
+
+        The rate is the other half, and the half a fast animation would
+        get wrong.  From the rest pose the instruction has the whole
+        declared travel to cover in `z_screw.HOMING_TIME`, which is
+        that travel at Marlin's own Z homing feedrate, so a third of
+        the way through the run the beam is a third of the way down and
+        not somewhere a belt would have got to.
+        """
+        beam = self.node.x_stage.plate
+        at_rest = beam.mesh.bounds.copy()
+        part = z_screw.HOMING_TIME / 3
+
+        simulation = Sim(self.node, self.TICK)
+        simulation.trigger('HomeZ')
+        simulation.run(part)
+
+        self.assertAlmostEqual(
+            z_screw.lift(simulation.state['z']),
+            ZCarPosition - part * z_screw.HOMING_RATE, delta=self.PLACED,
+            msg='homing Z does not descend at the rate the screws turn')
+
+        simulation.run(z_screw.HOMING_TIME - part)
+
+        self.assertAlmostEqual(z_screw.lift(simulation.state['z']), 0.0,
+                               delta=self.PLACED)
+        self.assertMovedBy(beam, at_rest, [0, 0, -ZCarPosition])
+
     ########################################
+    # The Z screws, which lift by turning
+
+    def test_each_z_nut_is_threaded_onto_its_bar(self):
+        """Both nuts are on a bar, and neither is in one.
+
+        Two halves that are worth nothing apart, which is why they are
+        one test.  A nut that shares no metal with its bar has cleared
+        it -- and so has a nut in the next room.  A nut whose every
+        point is within a few millimetres of the bar is on the axis --
+        and so is a nut machined straight through the thread.  Together
+        they are the only thing "threaded onto" can mean to two solids.
+        """
+        for nut, bar in self.z_pairs():
+            self.assertNotIntersecting(bar, nut)
+            self.assertClose(bar, nut, self.ON_THE_BAR)
+
+    def test_the_nuts_stay_threaded_wherever_the_screws_are_turned(self):
+        """The pair keeps clear at heights that are not whole threads.
+
+        This is the contract the rest pose cannot state.  A nut and a
+        bar that are drawn without any turn at all, or with the turn
+        the wrong way round, still fall neatly into each other wherever
+        the lift happens to be a whole number of leads -- and the rest
+        pose is 120 leads up, and the bottom of the travel is nought.
+        So it is asked at the bottom, where a homed machine sits, and
+        once in the middle at a height deliberately between two
+        threads, which is where a bar that was not really turning
+        drives its crest through the nut's.
+        """
+        for height in (0.0, self.OFF_PITCH):
+            self.drive(z=height)
+            for nut, bar in self.z_pairs():
+                self.assertNotIntersecting(bar, nut)
+
+    def test_the_bars_sustain_the_nuts(self):
+        """A nut cannot travel its bar unless the bar turns.
+
+        Which is what holds the X stage up: the beam's weight is on two
+        nuts, and what stops them running down the bars is that a
+        thread is in the way.  Pushed along the axis by a fraction of a
+        millimetre the nut fouls the flank it is resting on, and that
+        is a load path rather than a coincidence of placement -- the
+        same push on a nut around a plain cylinder meets nothing at
+        all, which is exactly what this machine used to be.
+
+        Asked both ways, because a screw drive holds a beam up and also
+        stops it being pushed up, and asked with its play named: a fit
+        that never touches would pass the blocking half of this on a
+        bore of any size, so the nut has to be genuinely free inside
+        its backlash and genuinely stopped outside it.
+        """
+        for nut, bar in self.z_pairs():
+            self.assertFreeWithin(nut, self.Z_NUT_PLAY, bar, along=(0, 0, 1))
+            self.assertBlockedBeyond(nut, self.Z_NUT_STOP, bar,
+                                     along=(0, 0, 1))
+
+    def test_a_whole_turn_of_the_bars_lifts_the_beam_one_lead(self):
+        """One turn, one pitch, and the bars go nowhere doing it.
+
+        A bar is not symmetric about its own axis in any way but one: a
+        whole turn puts every thread where the one before it stood, so
+        a bar drawn a lead further down its travel comes back drawn
+        exactly as it was.  That is the rate read off the metal rather
+        than off the arithmetic -- a bar geared to half or twice the
+        lead would come back somewhere else -- and the beam has to have
+        moved that lead while it happened, or the two are not the same
+        drive.
+        """
+        beam = self.node.x_stage.plate
+        beam_at_rest = beam.mesh.bounds.copy()
+        bars_at_rest = [bar.mesh.vertices.copy()
+                        for bar in self.node.z_axis.bars.bars]
+
+        self.drive(z=ZCarPosition - z_screw.LEAD)
+
+        for bar, at_rest in zip(self.node.z_axis.bars.bars, bars_at_rest):
+            numpy.testing.assert_allclose(
+                bar.mesh.vertices, at_rest, atol=self.PLACED,
+                err_msg=(f'{bar.name} is drawn differently a whole turn '
+                         f'along'))
+        self.assertMovedBy(beam, beam_at_rest, [0, 0, -z_screw.LEAD])
+
+    def test_lifting_the_beam_turns_both_bars_the_way_a_screw_turns(self):
+        """A quarter lead of rise is a quarter turn, clockwise.
+
+        The sign is the whole point and it is the thread's, not a
+        convention: an M8 bar is right-handed, so the turn that drives
+        a captive nut UP the bar is the one that would loosen a bolt
+        seen from below and tighten it seen from above -- clockwise
+        from above, which is negative about Z.  Read as an angle off
+        the metal, which is the only place a reversed drive shows as
+        itself instead of as a collision two tests later.
+
+        Both bars, and by the same angle: they turn together or the
+        beam racks.
+        """
+        quarter = -360 / 4
+
+        for bar in self.node.z_axis.bars.bars:
+            turned = self.turned_lifting(bar, z_screw.LEAD / 4)
+            self.assertAlmostEqual(
+                turned, quarter, delta=self.PLACED,
+                msg=(f'a quarter lead of rise turned {bar.name} {turned} '
+                     f'degrees, not the {quarter} of a quarter turn'))
+
+    def test_the_couplings_turn_with_the_bars_they_clamp(self):
+        """A coupling goes round with its shaft, or it is a sleeve.
+
+        Clamped to the motor shaft at one end and to the bar at the
+        other, so there is no ratio to state and nothing to check but
+        that it is the same angle: a coupling standing still under a
+        turning bar would be the model saying the bolts are loose.
+        """
+        for coupling in self.node.z_axis.couplings.couplings:
+            turned = self.turned_lifting(coupling, z_screw.LEAD / 4)
+            self.assertAlmostEqual(
+                turned, -360 / 4, delta=self.PLACED,
+                msg=f'{coupling.name} does not turn with its bar')
+
+    ########################################
+
+    def drive(self, **positions):
+        """Send the machine to positions stated in millimetres.
+
+        A driver's state is not always a position: Z's is the angle its
+        screws stand at, and millimetres reach it through the `scale`
+        the declaration carries.  Every test says where it wants the
+        machine in the units a maker would, and the declaration
+        converts -- which is the same route an instruction target
+        takes, so a test cannot be right about a height the interface
+        would be wrong about.
+        """
+        self.node.set_state(**{
+            name: getattr(type(self.node), name).native(value)
+            for name, value in positions.items()})
 
     def declared_travel(self, driver):
         """The two ends of the travel the machine declares for an axis.
@@ -917,6 +1135,47 @@ class Metamaquina2Test(TestCase):
         narrowing what the machine claims narrows what is asked of it.
         """
         return getattr(type(self.node), driver).range
+
+    def z_pairs(self):
+        """Each Z nut with the bar it is threaded onto.
+
+        Paired by side rather than by name: `ZBars` lists its bars from
+        the left of the machine, and the X ends are held one each on
+        the beam, so the motor end's nut belongs to the first bar.
+        """
+        return list(zip((self.node.x_stage.end_motor.nut,
+                         self.node.x_stage.end_idler.nut),
+                        self.node.z_axis.bars.bars))
+
+    def z_axes(self):
+        """Where the two Z bars stand, in the machine's own XY."""
+        offset = self.node.z_axis.bars.offset
+        return [numpy.array([side * offset, -XZStage_offset])
+                for side in (-1, 1)]
+
+    def turned_lifting(self, part, rise):
+        """How far `part` turns about its own Z bar's axis when the beam
+        is lifted `rise` millimetres from the bottom of its travel.
+
+        Signed, and about the axis the part really stands on rather
+        than about the middle of the machine: a rotation and a swing
+        both move a part, and only one of them is a screw turning.  The
+        angle is read off the vertex furthest from that axis, where a
+        turn shows largest and a float shows least.
+        """
+        axis = min(self.z_axes(),
+                   key=lambda candidate: numpy.linalg.norm(
+                       part.mesh.bounds.mean(axis=0)[:2] - candidate))
+
+        self.drive(z=0.0)
+        before = part.mesh.vertices[:, :2].copy() - axis
+        self.drive(z=rise)
+        after = part.mesh.vertices[:, :2] - axis
+
+        furthest = int(numpy.hypot(*before.T).argmax())
+        start, end = before[furthest], after[furthest]
+        return math.degrees(math.atan2(start[0] * end[1] - start[1] * end[0],
+                                       start @ end))
 
     def one_tooth(self, belt=x_belt, sense=1):
         """How far an axis travels to pull one tooth of belt through its

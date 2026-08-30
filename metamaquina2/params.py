@@ -138,7 +138,7 @@ _machine = _probe('Metamaquina2.scad', [
     # hardware
     'lm8uu_diameter', 'lm8uu_length',
     'm3_diameter', 'm3_washer_thickness', 'm3_nut_height', 'm3_spacer_radius',
-    'm8_diameter', 'm8_nut_height', 'm8_washer_thickness',
+    'm8_diameter', 'm8_nut_R', 'm8_nut_height', 'm8_washer_thickness',
     'm8_mudguard_washer_thickness',
     'NEMA17_width', 'NEMA17_height', 'NEMA17_length',
     'motor_shaft_length', 'motor_shaft_diameter',
@@ -255,6 +255,7 @@ m3_washer_thickness = _machine['m3_washer_thickness']
 m3_nut_height = _machine['m3_nut_height']
 m3_spacer_radius = _machine['m3_spacer_radius']
 m8_diameter = _machine['m8_diameter']
+m8_nut_R = _machine['m8_nut_R']
 m8_nut_height = _machine['m8_nut_height']
 m8_washer_thickness = _machine['m8_washer_thickness']
 m8_mudguard_washer_thickness = _machine['m8_mudguard_washer_thickness']
@@ -372,3 +373,6 @@ handle_bolt_length = 70        # handle() in lasercut_extruder.scad
 handle_nut_height = 3          # handle() in lasercut_extruder.scad
 idler_bolt_length = 30         # idler_bolt_subassembly()
 YPlatform_zoffset = 100 - 15   # YPlatform_subassembly() in Metamaquina2.scad
+ZLink_nut_seat = 7             # ZLink() in ZLink.scad: how far up the hex
+                               # socket the captive plate sits, and so where
+                               # the top face of the Z nut under it stands
