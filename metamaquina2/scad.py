@@ -66,6 +66,7 @@ power_supply = _handle('PowerSupply.scad')
 endstop = _handle('endstop.scad')
 
 extruder = _handle('lasercut_extruder.scad')
+nozzle = _handle('nozzle.scad')
 small_gear = _handle('small_extruder_gear.scad')
 large_gear = _handle('large_extruder_gear.scad')
 

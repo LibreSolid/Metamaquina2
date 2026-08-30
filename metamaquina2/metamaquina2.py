@@ -73,6 +73,37 @@ neighbours leave rather than to a length written down, which is how the
 bed's turned out to be a place the design states one distance twice and
 disagrees with itself by three tenths of a millimetre.
 
+And then there is the hot end, which is neither a shape that follows
+the machine nor a part the design forgot to buy.  It is the thing the
+machine is measured from: `nozzle_tip_distance` lifts the whole X
+platform so that the nozzle tip stands `ZCarPosition` above the build
+surface and `HomeZ` brings it down onto the glass, and until now no
+drawn part reached that point, because the one file that would draw the
+PEEK body -- `jhead.scad` -- still carries the conflict markers of a
+merge that was never finished, so OpenSCAD drops the module and the
+whole machine has been rendering with nothing under the carriage.
+
+So the five parts the bill of materials buys are here: the PEEK holder,
+the PTFE liner down it, the brass nozzle screwed into its foot, and the
+heater resistor and thermistor in the two holes the nozzle's block is
+drilled with.  The nozzle is the design's own module; the other four are
+drawn from the two dimensioned shop drawings this repository has always
+carried in `doc/`.  What a J-head is here is in `jhead.py` and the parts
+are in `x_stage/carriage/extruder/hotend/`.
+
+Two of its numbers are derived rather than read off a drawing, and both
+because the drawings leave them open where the machine does not.  The
+holder's length, because its drawing says "36.5mm or 50mm (length not
+critical)" and the machine says the tip has to land exactly
+`jhead_length` less `jhead_instalation_depth` below the extruder.  And
+the bore, because no drawing states it: it is the groove root the
+design's own sketch draws its body around, less the thinnest wall that
+sketch's drawing leaves at a groove, and what makes that worth anything
+is that the liner the design draws goes down it with half a tenth of a
+millimetre to spare.  The liner's own length then follows, and it is the
+second place -- after the bed springs -- where the design states a
+length for a gap and its own parts leave a different one.
+
 Where the geometry comes from is in `scad.py`, where the dimensions
 come from is in `params.py`, and how a part is authored is in
 `part.py`.

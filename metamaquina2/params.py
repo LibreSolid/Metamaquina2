@@ -95,6 +95,7 @@ def _value(text):
 
 _machine = _probe('Metamaquina2.scad', [
     # sheet stock
+    'inch',
     'thickness', 'acrylic_thickness', 'slot_extra_thickness', 'epsilon',
     # build volume and heated bed
     'BuildVolume_X', 'BuildVolume_Y', 'BuildVolume_Z',
@@ -128,7 +129,8 @@ _machine = _probe('Metamaquina2.scad', [
     'belt_offset', 'belt_width', 'belt_clamp_height',
     'bearing_sandwich_spacing',
     'YBearings_distance', 'YEndstopHolder_distance', 'YPlatform_height',
-    'nozzle_tip_distance',
+    # the hot end, and the height the machine measures from it
+    'nozzle_tip_distance', 'jhead_length', 'jhead_instalation_depth',
     # placed subassemblies
     'RAMBo_x', 'RAMBo_y',
     'powersupply_Xposition', 'powersupply_Yposition', 'HIQUA_POWERSUPPLY',
@@ -153,6 +155,9 @@ _machine = _probe('Metamaquina2.scad', [
     'top_cable_clips', 'left_cable_clips',
     'right_cable_clips', 'bottom_cable_clips',
 ])
+
+# the unit the bought American parts are drawn in
+inch = _machine['inch']
 
 # sheet stock
 thickness = _machine['thickness']
@@ -238,6 +243,8 @@ YBearings_distance = _machine['YBearings_distance']
 YEndstopHolder_distance = _machine['YEndstopHolder_distance']
 YPlatform_height = _machine['YPlatform_height']
 nozzle_tip_distance = _machine['nozzle_tip_distance']
+jhead_length = _machine['jhead_length']
+jhead_instalation_depth = _machine['jhead_instalation_depth']
 
 # placed subassemblies
 RAMBo_x = _machine['RAMBo_x']
@@ -390,3 +397,31 @@ YPlatform_zoffset = 100 - 15   # YPlatform_subassembly() in Metamaquina2.scad
 ZLink_nut_seat = 7             # ZLink() in ZLink.scad: how far up the hex
                                # socket the captive plate sits, and so where
                                # the top face of the Z nut under it stands
+jhead_groove_root = 10.4       # J_head_body() in jhead.scad: the core the
+                               # body's fins stand out from, which is what
+                               # the grooves are milled down to.  Restated
+                               # rather than probed for a second reason as
+                               # well as the usual one: the file carries the
+                               # conflict markers of an unfinished merge, so
+                               # OpenSCAD will not parse it at all.  See
+                               # `jhead.py`.
+jhead_bolt_positions = [       # extruder_slice() in lasercut_extruder.scad:
+    (6.7, 5), (-7.3, 5),       # where it cuts the two holes for the M3x30
+]                              # that hold the hot end, as (x, z) in the
+                               # extruder's own upright frame.  The design
+                               # writes them as +-nozzle_hole_width2/2 - 0.3
+                               # at height 5, with nozzle_hole_width2 = 14.
+
+# The PTFE liner, from PTFE_liner_2d_outline() in PTFE_liner.scad.  That
+# file is a shop drawing rather than a part: its 3D module revolves the
+# outline with the dimension arrows still on it, and nothing in the design
+# calls it.  So the outline's own numbers are restated here and the liner
+# is drawn from them.  Every one of them survives into the drawn part
+# except the length, which is the room the hot end leaves it; see `jhead`.
+PTFE_liner_diameter = 6.33     # d1: the tube itself
+PTFE_liner_tip = 3.25          # d2: what the drill point comes down to
+PTFE_liner_bore = 3.0          # d4: the filament runs down this
+PTFE_liner_mouth = 4.5         # d5a: the entrance bevel opens out to this
+PTFE_liner_mouth_depth = 2     # l5: over this much
+PTFE_liner_length = 47         # l2: as the drawing draws it
+PTFE_liner_point = 118         # the point angle, a drill's own

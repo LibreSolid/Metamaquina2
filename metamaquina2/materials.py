@@ -29,3 +29,11 @@ RUBBER = '#1a1a1a'
 NYLON = '#ffffcc'
 PEEK = '#f5f5dc'
 GOLD = '#ffd700'
+
+# Two the palette does not name, because the design draws neither part:
+# the hot end's PTFE liner and the ceramic body of its heater resistor.
+# The first is the palette's own `silk`, which is white, under the name
+# of the stuff it is; the second has no entry to borrow and is the pale
+# grey-beige a cemented wirewound resistor is potted in.
+PTFE = '#ffffff'
+CERAMIC = '#e8e0d0'

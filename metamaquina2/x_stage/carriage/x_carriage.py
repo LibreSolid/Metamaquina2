@@ -36,11 +36,10 @@ class XCarriage(AssemblyNode):
     Two clamps grip the belt, one at each end, so the belt pulls the
     carriage both ways.
 
-    The design also puts a J-head hot end under the carriage here.  It
-    is left out: `jhead.scad` in this repository still has unresolved
-    merge-conflict markers in it, so OpenSCAD refuses to parse the file
-    and drops its modules -- the whole-machine model has been rendering
-    without a hot end for as long as that has been true.
+    The design puts the J-head hot end here, at the carriage rather
+    than in the extruder, because it draws it from a file that never
+    parsed.  Here it hangs where a builder bolts it, under the extruder
+    block; see `jhead`.
     """
 
     spacer_span = 1.3

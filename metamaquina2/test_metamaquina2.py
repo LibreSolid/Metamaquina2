@@ -83,12 +83,14 @@ from solid_node.core.serializer import (
 from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
-from metamaquina2 import gt2, thread, z_screw
+from metamaquina2 import gt2, jhead, thread, z_screw
 from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
     IdlerRadius,
+    PTFE_liner_diameter,
+    PTFE_liner_length,
     PulleyRadius,
     XCarPosition,
     XZStage_offset,
@@ -98,6 +100,8 @@ from metamaquina2.params import (
     ZCarPosition,
     belt_width,
     heatedbed_spring_compressed_length,
+    jhead_instalation_depth,
+    jhead_length,
     m3_washer_thickness,
 )
 from metamaquina2.x_stage import x_belt
@@ -1148,6 +1152,240 @@ class Metamaquina2Test(TestCase):
                 self.assertEqual(published['tech'], 'molejo', path)
                 self.assertEqual(published['spec']['path'][0]['type'],
                                  'helix', path)
+
+    ########################################
+    # The hot end, which is where Z is measured from
+
+    def test_the_extruder_carries_the_hot_end_it_buys(self):
+        """The five bought parts are there, and the two bolts that hold
+        them.
+
+        Five parts and not one solid, because that is what a builder
+        has in front of them: a PEEK holder, a PTFE liner to push down
+        it, a brass nozzle to screw into its foot, and a resistor and a
+        thermistor to push into the brass.  The bill of materials buys
+        each of them separately, three under `//TODO: Add this part to
+        the CAD model`.
+        """
+        hot_end = self.node.x_stage.carriage.extruder.hot_end
+
+        for part in ('holder', 'liner', 'nozzle', 'resistor', 'thermistor'):
+            self.assertTrue(hasattr(hot_end, part),
+                            f'the hot end has no {part}')
+            self.assertGreater(getattr(hot_end, part).mesh.volume, 0,
+                               f"the hot end's {part} is empty")
+
+        bolts = self.node.x_stage.carriage.extruder.hot_end_bolts
+        self.assertEqual(len(bolts), 2)
+
+    def test_the_nozzle_tip_stands_where_the_machine_measures_z_from(self):
+        """The tip is `jhead_length` less its installation depth below
+        the face the extruder clamps.
+
+        This is the contract the whole hot end exists to keep, and the
+        one that decides the holder's length.  `nozzle_tip_distance`
+        lifts the entire X platform by exactly this much so that the tip
+        stands `ZCarPosition` above the build surface; a hot end drawn
+        at either of the lengths its own drawing offers would put the
+        tip somewhere else and leave the machine measuring from a point
+        no part reaches.
+
+        Asked in three places at once, because each alone passes for
+        something wrong: the holder has to stand its shoulder on the
+        extruder's underside, the collar and neck above that have to be
+        the depth the design says they are, and the brass has to reach
+        down from there to the tip.
+        """
+        extruder = self.node.x_stage.carriage.extruder
+        hot_end = extruder.hot_end
+
+        mount = hot_end.holder.mesh.bounds[1][2] - jhead.INSTALLATION
+        underside = min(sheet.mesh.bounds[0][2]
+                        for sheet in extruder.block.slices)
+
+        self.assertAlmostEqual(
+            jhead.INSTALLATION, jhead_instalation_depth, delta=self.PLACED,
+            msg=("the holder's collar and neck are not the design's own "
+                 "installation depth"))
+        self.assertAlmostEqual(
+            mount, underside, delta=self.PLACED,
+            msg="the holder's shoulder is not on the extruder's underside")
+        self.assertAlmostEqual(
+            mount - hot_end.nozzle.mesh.bounds[0][2],
+            jhead_length - jhead_instalation_depth, delta=self.PLACED,
+            msg='the nozzle tip is not where the machine measures Z from')
+
+    def test_homing_z_brings_the_nozzle_down_onto_the_build_surface(self):
+        """`HomeZ` really does put the nozzle on the glass.
+
+        What the beam does at the bottom of the travel was already
+        asked; what it is *for* could not be, because there was no
+        nozzle to ask about.  Both halves again: a tip that stops short
+        has not homed, and a tip through the glass has homed to the
+        wrong place.
+        """
+        nozzle = self.node.x_stage.carriage.extruder.hot_end.nozzle
+        glass = self.node.y_axis.platform.heated_bed.glass
+
+        simulation = Sim(self.node, self.TICK)
+        simulation.trigger('HomeZ')
+        simulation.run(z_screw.HOMING_TIME)
+
+        self.assertAlmostEqual(
+            nozzle.mesh.bounds[0][2], glass.mesh.bounds[1][2],
+            delta=self.PLACED,
+            msg='the homed nozzle does not meet the build surface')
+
+    def test_the_hot_end_is_stacked_the_way_it_is_assembled(self):
+        """Each part of the hot end stands on the next one.
+
+        The nozzle is run into the holder's foot until its block meets
+        the shoulder; the liner is pushed down the bore until its point
+        comes to rest on the rim of the melt chamber.  Both are contact,
+        so both are asked as contact: touching, and cutting into
+        nothing.
+
+        The two are not asked the same way round, because they are not
+        the same kind of contact.  The nozzle meets the holder face to
+        face, so either part's vertices land on the other.  The liner
+        does not meet a face at all -- a cone comes down on a circle --
+        and a cone drawn with a ring at each end has no vertex where it
+        touches, while the rim has one all the way round.  So the rim is
+        what is asked.
+        """
+        hot_end = self.node.x_stage.carriage.extruder.hot_end
+
+        self.assertSeatedOn(hot_end.nozzle, hot_end.holder)
+
+        self.assertRidesOn(hot_end.liner, hot_end.nozzle)
+        rim = trimesh.proximity.closest_point(
+            hot_end.liner.mesh, hot_end.nozzle.mesh.vertices)[1].min()
+        self.assertLess(
+            rim, self.SEATED,
+            f'the liner stands {rim} mm clear of the melt chamber rim')
+
+    def test_no_two_parts_of_the_hot_end_share_metal(self):
+        """Five parts that fit inside each other, and none of them in
+        each other.
+
+        The one place in this machine where that can be asked of every
+        pair -- the design's fasteners pass through the sheets they
+        clamp and its bought parts come in several bodies, which is why
+        the whole-model contract is not asserted, but a hot end really
+        is five separate things.
+        """
+        hot_end = self.node.x_stage.carriage.extruder.hot_end
+        parts = [hot_end.holder, hot_end.liner, hot_end.nozzle,
+                 hot_end.resistor, hot_end.thermistor]
+
+        for first in range(len(parts)):
+            for second in range(first + 1, len(parts)):
+                self.assertRidesOn(parts[first], parts[second])
+
+    def test_the_liner_runs_the_bore_it_was_derived_for(self):
+        """The liner fills the holder's bore at the derived clearance.
+
+        The bore was not measured off anything: it is the groove root
+        the design draws its own body around, less the thinnest wall its
+        drawing leaves at a groove, and what makes that derivation worth
+        anything is that the liner the design draws goes down it.  So
+        the metal is asked, rather than the arithmetic read back.
+        """
+        hot_end = self.node.x_stage.carriage.extruder.hot_end
+        clearance = (jhead.bore - PTFE_liner_diameter) / 2
+
+        gap = trimesh.proximity.closest_point(
+            hot_end.holder.mesh, hot_end.liner.mesh.vertices)[1].min()
+        self.assertAlmostEqual(
+            gap, clearance, delta=self.BORE,
+            msg=f'the liner runs {gap} mm off the bore, not {clearance}')
+
+    def test_the_liner_is_drawn_to_the_room_the_hot_end_leaves_it(self):
+        """The liner is shorter than its own drawing by the room that
+        is missing.
+
+        `PTFE_liner.scad` draws 47 mm and the hot end has 40.3 mm of
+        bore to offer, and the difference is not a rounding: it is more
+        than six millimetres of tube with nowhere to be.  Asked so that
+        the disagreement cannot quietly go away -- if the design's liner
+        and the design's overall length are ever reconciled, this is
+        what says so.
+        """
+        liner = self.node.x_stage.carriage.extruder.hot_end.liner
+        low, high = liner.mesh.bounds
+
+        self.assertAlmostEqual(
+            high[2] - low[2], PTFE_liner_length - jhead.LINER_SHORTFALL,
+            delta=self.PLACED)
+        self.assertGreater(jhead.LINER_SHORTFALL, 1)
+
+    def test_the_heater_and_the_sensor_sit_in_their_drilled_holes(self):
+        """Both are in the holes the nozzle module drills for them.
+
+        Each one is asked the same two questions a part pressed into a
+        hole has to answer: it stays inside the hole, and it comes out
+        of it far enough to be wired.  Inside rather than on the axis,
+        because a drilled hole is round and a part in it is a polygon:
+        asking every point of the part to be within the hole's own
+        radius of its axis is the same contract without a tessellation
+        in it, and it is the one that would catch a resistor pushed into
+        the wrong hole or drawn oversize.
+
+        That the part is not in the brass is the pairwise contract next
+        door, and it is what the slip fit is drawn for -- a body at
+        exactly the drilled diameter would be the same circle twice, and
+        the pair could not be asked at all.
+        """
+        hot_end = self.node.x_stage.carriage.extruder.hot_end
+        block = hot_end.nozzle.mesh.bounds
+
+        # Where the filament axis stands, read off the block itself
+        # rather than off the carriage: the block's own corner is what
+        # both holes are dimensioned from, and it is the same corner
+        # wherever the machine has sent the carriage.  The design draws
+        # the hot end square with the machine, so the block's X is the
+        # machine's.
+        axis_x = block[0][0] + jhead.BLOCK_BORE_X
+        axis_y = block[0][1] + jhead.BLOCK_BORE_Y
+        base = block[0][2] + jhead.REACH
+
+        for part, along, hole, drilled in (
+                (hot_end.resistor, 1,
+                 (axis_x + jhead.HEATER_X, base + jhead.HEATER_HEIGHT),
+                 jhead.HEATER_DIAMETER),
+                (hot_end.thermistor, 0,
+                 (axis_y + jhead.THERMISTOR_Y,
+                  base + jhead.THERMISTOR_HEIGHT),
+                 jhead.THERMISTOR_DIAMETER)):
+            across = [index for index in range(3) if index != along]
+            offsets = part.mesh.vertices[:, across] - numpy.array(hole)
+            radius = numpy.linalg.norm(offsets, axis=1).max()
+
+            self.assertLessEqual(
+                radius, drilled / 2,
+                f'{part.name} stands outside the hole drilled for it')
+            self.assertLess(
+                part.mesh.bounds[0][along], block[0][along],
+                f'{part.name} does not reach out of the block to be wired')
+
+    def test_the_hot_end_travels_with_the_carriage_and_the_beam(self):
+        """The nozzle goes where the machine sends it.
+
+        Driving X slides it along the beam and driving Z takes it down
+        with the beam, which is the whole reason the tip is worth
+        measuring: a hot end bolted to the frame by accident would keep
+        every other contract here.
+        """
+        nozzle = self.node.x_stage.carriage.extruder.hot_end.nozzle
+
+        at_rest = nozzle.mesh.bounds.copy()
+        self.drive(x=XCarPosition + 40)
+        self.assertMovedBy(nozzle, at_rest, [40, 0, 0])
+
+        self.drive(x=XCarPosition)
+        at_rest = nozzle.mesh.bounds.copy()
+        self.drive(z=ZCarPosition - 30)
+        self.assertMovedBy(nozzle, at_rest, [0, 0, -30])
 
     ########################################
     # What the machine can be told to do

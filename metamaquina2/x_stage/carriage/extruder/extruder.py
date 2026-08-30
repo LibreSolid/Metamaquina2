@@ -3,12 +3,15 @@
 from solid_node.node import AssemblyNode
 
 from metamaquina2.hardware.bearing_608zz import Bearing608zz
+from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m8_locknut import M8Locknut
 from metamaquina2.hardware.nema17_mount import Nema17Mount
 from metamaquina2.params import (
     extruder_gear_angle,
     extruder_washer_thickness,
     hobbed_bolt_position,
+    jhead_bolt_positions,
+    m3_diameter,
     motor_angle,
     motor_position,
     thickness,
@@ -16,6 +19,7 @@ from metamaquina2.params import (
 from metamaquina2.x_stage.carriage.extruder.block import ExtruderBlock
 from metamaquina2.x_stage.carriage.extruder.handle import POSITION, Handle
 from metamaquina2.x_stage.carriage.extruder.hobbed_bolt import HobbedBolt
+from metamaquina2.x_stage.carriage.extruder.hotend.hot_end import HotEnd
 from metamaquina2.x_stage.carriage.extruder.idler.idler import Idler
 from metamaquina2.x_stage.carriage.extruder.large_gear import ExtruderGear
 from metamaquina2.x_stage.carriage.extruder.small_gear import MotorGear
@@ -31,9 +35,23 @@ class Extruder(AssemblyNode):
 
     Drawn standing on the carriage plate, facing along -Y; the
     carriage turns it to face the front of the machine.
+
+    The hot end hangs under the block, held by two M3x30 through the
+    holes the slices are cut with for them.  It is turned back out of
+    the extruder's own frame, because the design draws it square with
+    the machine rather than with the extruder: which way its heater
+    block faces is set by the last quarter turn of tightening the
+    nozzle, so it is free, and the design's choice is kept.
     """
 
     hobbed_bolt_drop = 30
+
+    #: How long the bolts that hold the hot end are.  Two M3x30, bought
+    #: by `extruder_block()` under `//TODO: Add these parts to the CAD
+    #: model` and commented "for attaching the jhead_body", which is
+    #: exactly what they are here.  Thirty is the five slices' own
+    #: thickness, so each one just spans the block.
+    hot_end_bolt = 30
 
     def __init__(self, *args, **kwargs):
         bolt_x, bolt_z = hobbed_bolt_position
@@ -83,6 +101,14 @@ class Extruder(AssemblyNode):
                     .rotate(-90, [1, 0, 0])
                     .translate([motor_x, -thickness / 2, motor_z]))
 
+        self.hot_end = HotEnd().rotate(-90, [0, 0, 1])
+        self.hot_end_bolts = [
+            Bolt(m3_diameter, self.hot_end_bolt)
+            .rotate(-90, [1, 0, 0])
+            .translate([x, 5 * thickness / 2, z])
+            for x, z in jhead_bolt_positions
+        ]
+
         self.motor = on_motor(Nema17Mount())
         self.motor_gear = on_motor(
             MotorGear()
@@ -96,4 +122,5 @@ class Extruder(AssemblyNode):
         return ([self.block, self.idler, self.handle, self.gear,
                  self.hobbed_bolt, self.hobbed_bolt_nut]
                 + self.bearings
-                + [self.motor, self.motor_gear])
+                + [self.motor, self.motor_gear, self.hot_end]
+                + self.hot_end_bolts)
