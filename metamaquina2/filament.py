@@ -74,12 +74,26 @@ The stand is beside the machine and the extruder is inside it, so the
 run cannot go straight there: the frame's right-hand side panel is a
 wall of sheet from the floor to the frame's own height, and on the way
 in there are the beam's own plate and the box at its end.  So the run
-is pinned at two points rather than one.  It climbs from the reel to
-`CROSSING_X`, `CROSSING_Z` -- over the machine's own edge, clear of the
-highest sheet the frame carries -- and comes down from there into the
-channel, which is inside the opening the top panel is cut with for the
-carriage to travel in.  Both are the machine's to say and both arrive
-through ports.
+climbs from the reel to a crossing over the machine's own edge, travels
+in from there at that height until it is over the extruder, and turns
+down into the channel through the opening the top panel is cut with for
+the carriage to travel in.
+
+Three pinned points, and only two of them are numbers of their own:
+where the run crosses, where it turns down, and where it ends.  The
+turn is directly over the end at the height of the crossing, so it is
+made of the other two and asks for no port at all.  `metamaquina2`
+holds both, because what they are made of is the frame's own width and
+how high the machine's own head ever gets, and both are the machine's.
+
+Turning down over the extruder rather than curving straight at it is
+not decoration.  A run pinned only at the crossing has to be vertical
+by the time it reaches the channel, so it leaves the crossing already
+falling and reaches the frame's right-hand side panel below the top
+panel it was supposed to come down through -- which is what it did, at
+the bottom of the Z travel with the carriage on the reel's side of the
+machine.  Level until it is over the opening, and then down, is the
+route that does not depend on how a spline happens to sag.
 
 And the run stops at the mouth of the extruder's channel, which is a
 finding rather than a preference: `metamaquina2` records the four
@@ -93,11 +107,8 @@ from solid_node.node import MolejoNode, TranslationalPort
 from metamaquina2 import materials
 from metamaquina2.params import (
     filament_diameter,
-    machine_height,
-    machine_x_dim,
     spool_diameter,
     spool_width,
-    thickness,
 )
 from metamaquina2.scad import scad_sources
 
@@ -136,13 +147,13 @@ TRAVERSE = TURNS * filament_diameter
 RINGS_PER_TURN = 36
 
 #: What the document declares, which molejo spends on EACH element of
-#: the path rather than dividing between them.  So each of the free
-#: run's two spans is drawn with as many rings as the whole layer, a
-#: few tenths of a millimetre apart.  That is the cost of chaining a
-#: dense primitive to sparse ones in a format whose tessellation is
-#: fixed by the document, and it is paid rather than worked around:
-#: splitting them into separate parts to spend less would draw a
-#: strand in three pieces.
+#: the path rather than dividing between them, and a spline is one
+#: element per point it runs to.  So each of the free run's three spans
+#: is drawn with as many rings as the whole layer, a few tenths of a
+#: millimetre apart.  That is the cost of chaining a dense primitive to
+#: sparse ones in a format whose tessellation is fixed by the document,
+#: and it is paid rather than worked around: splitting them into
+#: separate parts to spend less would draw a strand in four pieces.
 PATH_SAMPLES = RINGS_PER_TURN * TURNS
 
 #: How many points go round the stock.
@@ -175,27 +186,6 @@ PLACEMENT = (120, [1, -1, 1])
 #: machine's y and this is read in the machine's own coordinates.
 OFFSET = [0, TRAVERSE / 2, RADIUS]
 
-#: Where the run crosses the machine, along the machine's own x.
-#:
-#: The stand is beside the machine and the extruder is inside it, so
-#: the run has to get over the frame's right-hand side panel, which is
-#: a wall of sheet from the floor to the frame's own height.  It
-#: crosses at the machine's own edge, which is the last place before
-#: the frame there is nothing but air.
-CROSSING_X = machine_x_dim / 2
-
-#: How high it crosses.
-#:
-#: The frame's height is the underside of its top panel; on top of that
-#: panel stand the rod-end plates, so the highest sheet the frame
-#: carries is two thicknesses above it.  Two stock diameters over that
-#: puts the run's own centre line clear, and leaves about a clear stock
-#: diameter under it where the curve dips inside the point it was
-#: pinned at.  Above the crossing there is nothing on this machine: the
-#: Z travel tops out at the pose the design draws, so the extruder's
-#: own channel never comes up to meet it.
-CROSSING_Z = machine_height + 2 * thickness + 2 * filament_diameter
-
 #: Which way is down, read in the strand's own frame: what the free run
 #: has to arrive along to be pointing down the extruder's channel.
 DOWN = [-1, 0, 0]
@@ -226,16 +216,24 @@ class Filament(MolejoNode):
     came, which is a joint with no kink in it and no literal tangent
     that could have said so.
 
-    Its ports are the two places the run is pinned, which are the only
+    Its ports are the places the run is pinned, which are the only
     things about a length of stock that are not the stock: where it
-    crosses the frame, and where it goes in.  The machine binds both,
-    from the frame it owns and from where it puts its own extruder, so
-    driving X or Z redraws the run and leaves the layer where it lies
-    -- a reel does not turn when a print head moves.
+    crosses the machine, and where it goes in.  The machine binds both,
+    from the frame and the travel it owns and from where it puts its
+    own extruder, so driving X or Z redraws the run and leaves the
+    layer where it lies -- a reel does not turn when a print head
+    moves.
 
     Five rather than six, because the two share their third coordinate:
     the run comes across the machine in the same plane it goes in on,
     so `plane` is one number and it is the same number twice.
+
+    And the third pinned point -- where the run turns down, over the
+    extruder at the height it came across at -- costs nothing at all,
+    because it is the crossing's own height with the end's own two
+    numbers.  Which is the whole of what a parametric shape buys: a
+    point of the machine can be made out of ports already bound rather
+    than declared again.
 
     Shares with `ScadPart` the thing every part in this package shares:
     its dimensions come from the .scad sources, which no Python import
@@ -261,6 +259,7 @@ class Filament(MolejoNode):
             path=[
                 Helix(radius=RADIUS, turns=TURNS, height=TRAVERSE),
                 Spline(points=[[P.over_x, P.over_y, P.plane],
+                               [P.over_x, P.head_y, P.plane],
                                [P.head_x, P.head_y, P.plane]],
                        end_tangent=DOWN),
             ],

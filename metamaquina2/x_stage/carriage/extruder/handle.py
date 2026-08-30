@@ -5,6 +5,7 @@ from solid_node.node import AssemblyNode
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m4_washer import M4Washer
 from metamaquina2.params import (
+    HandleHeight,
     HandleWidth,
     handle_bolt_length,
     handle_nut_height,
@@ -28,6 +29,16 @@ from metamaquina2.x_stage.carriage.extruder.idler_spring import IdlerSpring
 #: extruder's -x, so a distance up a bolt from the handle plate is
 #: `POSITION[0]` minus a position in the extruder's flat frame.
 POSITION = [7, 0, 58]
+
+#: How high this assembly stands, in the extruder's own frame.
+#:
+#: The plate's own height, up from where the extruder stands it: the
+#: rotations that go with `POSITION` put the plate's height along the
+#: extruder's +z, so the two simply add.  Published because the plate
+#: is the highest thing on the whole machine that moves, and something
+#: outside the extruder has to get over it -- see `filament` and the
+#: crossing the machine pins the free run at.
+TOP = POSITION[2] + HandleHeight
 
 #: How far up the handle plate the two bolts run, from `handle()`.
 BOLT_ROW = 5

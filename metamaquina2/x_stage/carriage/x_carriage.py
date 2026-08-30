@@ -25,6 +25,7 @@ from metamaquina2.x_stage.carriage.belt_clamp import XBeltClamp
 from metamaquina2.x_stage.carriage.carriage_plate import XCarriagePlate
 from metamaquina2.x_stage.carriage.extruder.extruder import (
     FILAMENT_ENTRY as ENTRY_ON_THE_EXTRUDER,
+    TOP as TOP_OF_THE_EXTRUDER,
     Extruder,
 )
 from metamaquina2.x_stage.carriage.sandwich_plate import (
@@ -44,6 +45,11 @@ EXTRUDER_ANGLE = 90
 FILAMENT_ENTRY = [EXTRUDER_POSITION[0] - ENTRY_ON_THE_EXTRUDER[1],
                   EXTRUDER_POSITION[1] + ENTRY_ON_THE_EXTRUDER[0],
                   EXTRUDER_POSITION[2] + ENTRY_ON_THE_EXTRUDER[2]]
+
+#: How high this carriage stands, in its own frame: the extruder on its
+#: plate, and the extruder's own top.  The quarter turn that faces the
+#: extruder forward is about z, so it leaves a height alone.
+TOP = EXTRUDER_POSITION[2] + TOP_OF_THE_EXTRUDER
 
 
 class XCarriage(AssemblyNode):

@@ -133,10 +133,24 @@ Getting there is not a straight line either.  The stand is beside the
 machine and the extruder is inside it, so a run drawn from one to the
 other goes through the frame's right-hand side panel, the beam's own
 plate and the box at the beam's end.  It is carried over the machine's
-own edge instead, clear of the highest sheet the frame carries, and
-comes down through the opening the top panel is cut with for the
-carriage to travel in -- which is why the free run is pinned at two
-points rather than one, and why five ports and not three.
+own edge instead, comes across at that height until it is over the
+extruder, and turns down into the channel through the opening the top
+panel is cut with for the carriage to travel in -- which is why the
+free run is pinned at three points rather than one, and why five ports
+and not three: two of the three points share the plane the run comes in
+on, and the third is made of the other two.
+
+How high it crosses is the machine's own answer to a question the frame
+cannot answer.  The frame's ceiling is the rod-end plates on its top
+panel, and for a while the run crossed two stock diameters over those,
+on the reasoning that nothing on this machine stands higher.  That is
+not so: `ZCarPosition` is the middle of the Z travel, not the top, and
+at the top the beam carries the extruder out through the top panel's
+own opening with the handle plate thirty millimetres above the channel
+mouth.  So the run is pinned over the highest the print head ever
+stands, and by enough that the turn down onto it has room at every
+corner of the two travels -- both of which are asked for rather than
+described.
 
 Where the run stops is a finding rather than a choice, and there are
 four of them.  The first is at the mouth itself: the extruder handle's
@@ -176,12 +190,53 @@ from metamaquina2.params import (
     XZStage_offset,
     YCarPosition,
     ZCarPosition,
+    filament_diameter,
+    machine_x_dim,
     nozzle_tip_distance,
 )
 from metamaquina2.spool_holder.spool_holder import SPOOL_HEIGHT, SpoolHolder
-from metamaquina2.x_stage.x_stage import XStage, filament_entry
+from metamaquina2.x_stage.x_stage import (
+    TOP as TOP_OF_THE_BEAM,
+    XStage,
+    filament_entry,
+)
 from metamaquina2.y_axis.y_axis import YAxis
 from metamaquina2.z_axis.z_axis import ZAxis
+
+
+#: Where the free run gets over this machine, along the machine's own x.
+#:
+#: The stand is beside the machine and the extruder is inside it, so
+#: the run has to get over the frame's right-hand side panel, which is
+#: a wall of sheet from the floor to the frame's own height.  It
+#: crosses at the machine's own edge, which is the last place before
+#: the frame there is nothing but air.
+CROSSING_X = machine_x_dim / 2
+
+#: How high the run crosses, and comes across at until it is over the
+#: extruder.
+#:
+#: Over the highest this machine ever stands, which is not the frame.
+#: The rod-end plates on the top panel are the frame's own ceiling at
+#: 369, but `ZCarPosition` is the middle of the Z travel and not the
+#: top of it: wind the beam up to `BuildVolume_Z` and it carries the
+#: extruder's channel mouth to 366 and the handle plate 30 mm above
+#: that, out through the opening the top panel is cut with.  So what
+#: the run has to get over is the print head, and the height it gets
+#: over it by is measured from the beam rather than from the frame.
+#:
+#: The clearance is chosen and not derived, and it is not small.  Two
+#: stock diameters -- enough for a run passing over a fixed sheet -- is
+#: not enough for one turning down onto a moving head: with the beam at
+#: the top of its travel and the carriage at the far end of the beam,
+#: the turn swings wide and reaches the handle bolts standing out in
+#: front of the block.  Twelve leaves the turn its room at every corner
+#: of the two travels, and what makes that a claim rather than a guess
+#: is `test_the_free_run_gets_over_the_machine_rather_than_through_it`,
+#: which asks the metal at all four of them.
+CROSSING_CLEARANCE = 12 * filament_diameter
+CROSSING_Z = (BuildPlatform_height + BuildVolume_Z + nozzle_tip_distance
+              + TOP_OF_THE_BEAM + CROSSING_CLEARANCE)
 
 
 class Metamaquina2(AssemblyNode):
@@ -297,20 +352,24 @@ class Metamaquina2(AssemblyNode):
         beam at a height; what the beam hangs FROM is in the Z axis, and
         the two agree because both are read off the same screw.
 
-        The filament is told the two points its free run is pinned at,
-        and one of them is the same lift a third time.  The beam says
-        where its extruder's channel opens in its own frame, the machine
-        adds what it stood the beam off by, and `in_strand_frame` reads
-        the result back in the strand's own turned frame.  The other is
-        where the run gets over the frame, which is the machine's to say
-        because the frame is: a point of air off the machine's own edge,
-        above the highest sheet the frame carries, in the plane the run
-        comes in on.
+        The filament is told the points its free run is pinned at, and
+        one of them is the same lift a third time.  The beam says where
+        its extruder's channel opens in its own frame, the machine adds
+        what it stood the beam off by, and `in_strand_frame` reads the
+        result back in the strand's own turned frame.  The other is
+        where the run gets over the machine, which is the machine's to
+        say because both the frame it has to clear and the height its
+        own head reaches are: a point of air off the machine's own edge,
+        above the top of the beam at the top of its travel, in the plane
+        the run comes in on.
 
         Five ports rather than two, because a point is three numbers and
         a molejo parameter is a plain named number with no arithmetic
         behind it -- and five rather than six because the two points
-        share that plane.
+        share that plane.  The third pinned point, where the run turns
+        down, is bound to no port of its own: it is the crossing's own
+        height with the end's own two numbers, so the shape makes it out
+        of ports already bound.
         """
         self.connect(self.x, self.x_stage.carriage_position)
         self.connect(self.y, self.y_axis.platform_position)
@@ -325,8 +384,7 @@ class Metamaquina2(AssemblyNode):
         entry = [entry[axis] + stage[axis] for axis in range(3)]
         head = filament.in_strand_frame(entry, self.strand_origin)
         over = filament.in_strand_frame(
-            [filament.CROSSING_X, entry[1], filament.CROSSING_Z],
-            self.strand_origin)
+            [CROSSING_X, entry[1], CROSSING_Z], self.strand_origin)
 
         self.connect(over[0], self.filament.over_x)
         self.connect(over[1], self.filament.over_y)

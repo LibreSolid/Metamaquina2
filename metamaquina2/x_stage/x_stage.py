@@ -11,6 +11,7 @@ from metamaquina2.params import (
 )
 from metamaquina2.x_stage.carriage.x_carriage import (
     FILAMENT_ENTRY as ENTRY_ON_THE_CARRIAGE,
+    TOP as TOP_ON_THE_CARRIAGE,
     XCarriage,
 )
 from metamaquina2.x_stage.ends.idler.x_end_idler import XEndIdler
@@ -18,6 +19,16 @@ from metamaquina2.x_stage.ends.motor.x_end_motor import XEndMotor
 from metamaquina2.x_stage.platform_plate import XPlatformPlate
 from metamaquina2.x_stage.x_belt import CLAMP_ORIGIN, XBelt, pulley_angle
 from metamaquina2.x_stage.x_rods import XRods
+
+
+#: How high this beam stands, in its own frame.
+#:
+#: The carriage's own top, and not a function of where the carriage is:
+#: it travels along this beam, not up it.  So this is a number where
+#: `filament_entry` is a function, and it is what the machine has to
+#: carry the filament over once the beam is high enough that the frame
+#: is no longer the tallest thing in the way.
+TOP = TOP_ON_THE_CARRIAGE
 
 
 def filament_entry(carriage_position):

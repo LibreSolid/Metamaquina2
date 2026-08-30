@@ -20,7 +20,11 @@ from metamaquina2.params import (
     thickness,
 )
 from metamaquina2.x_stage.carriage.extruder.block import ExtruderBlock
-from metamaquina2.x_stage.carriage.extruder.handle import POSITION, Handle
+from metamaquina2.x_stage.carriage.extruder.handle import (
+    POSITION,
+    TOP as TOP_OF_THE_HANDLE,
+    Handle,
+)
 from metamaquina2.x_stage.carriage.extruder.hobbed_bolt import HobbedBolt
 from metamaquina2.x_stage.carriage.extruder.hotend.hot_end import HotEnd
 from metamaquina2.x_stage.carriage.extruder.idler.idler import Idler
@@ -43,6 +47,15 @@ from metamaquina2.x_stage.carriage.extruder.small_gear import MotorGear
 #: the difference so it cannot quietly go away.
 FILAMENT_ENTRY = [filament_channel_x + filament_channel_width / 2, 0,
                   extruder_slice_height]
+
+#: How high this assembly stands, in its own frame.
+#:
+#: The handle's plate, which stands above every slice of the block --
+#: including the tall middle ones the gear and the hobbed bolt run in.
+#: Named because the filament has to get over it: the strand is pinned
+#: over the machine, and at the top of the Z travel the beam carries
+#: this above every sheet the frame has.
+TOP = TOP_OF_THE_HANDLE
 
 
 class Extruder(AssemblyNode):

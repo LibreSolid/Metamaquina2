@@ -115,6 +115,7 @@ from metamaquina2.params import (
     spool_width,
     thickness,
 )
+from metamaquina2.metamaquina2 import CROSSING_CLEARANCE
 from metamaquina2.x_stage import x_belt
 from metamaquina2.y_axis import y_belt
 
@@ -1593,19 +1594,29 @@ class Metamaquina2Test(TestCase):
         it; and a strand drawn from a reel that turned with the print
         head would keep both while being a machine that unwinds when
         you move the carriage.
+
+        Redrawn is asked as a length rather than as a point on the run.
+        The two axes change the run's shape in different places -- X
+        lengthens the level stretch between the crossing and the turn
+        down, Z lengthens the drop from the turn down to the mouth --
+        so a probe partway along would stand still for one of them and
+        be carried whole by the other, while proving nothing about
+        either.  What both do is change how much stock is hanging
+        between the reel and the head, and a strand that merely moved
+        would keep its length exactly.  A fifth of the move is the
+        tolerance because the turn down rounds its own corner, and how
+        much of a move that rounding absorbs depends on where the head
+        was when it started.
         """
-        # Halfway along the last span: the free run is pinned where it
-        # crosses the frame, so what has to be redrawn is what comes
-        # after that, and the middle of the whole run would be sitting
-        # on the pin.
-        between = filament.PATH_SAMPLES + filament.PATH_SAMPLES // 2
+        def hanging(run):
+            return numpy.linalg.norm(numpy.diff(run, axis=0), axis=1).sum()
 
         for driven, offset in ((dict(x=XCarPosition + 40), [40, 0, 0]),
                                (dict(z=ZCarPosition - 30), [0, 0, -30])):
             self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
             coil, run = self.strand_parts()
-            was_coil, was_end, was_between = (coil.copy(), run[-1].copy(),
-                                              run[between].copy())
+            was_coil, was_end = coil.copy(), run[-1].copy()
+            was_hanging = hanging(run)
             was_pin = run[filament.PATH_SAMPLES].copy()
 
             self.drive(**driven)
@@ -1624,13 +1635,11 @@ class Metamaquina2Test(TestCase):
                     delta=self.PLACED,
                     msg=f'the run does not end on the extruder, axis {axis}')
 
-            moved = numpy.linalg.norm(run[between] - was_between)
-            self.assertGreater(
-                moved, self.PLACED,
-                'the run stood still between its pin and its end')
-            self.assertLess(
-                moved, numpy.linalg.norm(offset) - self.PLACED,
-                'the run was carried along whole instead of being redrawn')
+            moved = numpy.linalg.norm(offset)
+            self.assertAlmostEqual(
+                abs(hanging(run) - was_hanging), moved, delta=moved / 5,
+                msg='the run does not lengthen by what the head moved, so '
+                    'it was carried along rather than redrawn')
 
     def test_the_filament_is_one_continuous_strand(self):
         """One closed body of stock, wherever the machine stands.
@@ -1666,10 +1675,13 @@ class Metamaquina2Test(TestCase):
         contract here -- it starts on the reel, ends at the channel and
         redraws itself when the head moves -- which is why this exists.
 
-        Asked at the four corners of the travel and at rest, because
-        where the run passes is a function of both axes: X swings the
-        far end across the beam and Z drops it a hundred and fifty
-        millimetres down inside the frame.
+        Asked at the four corners of the travel and at rest, and the
+        corners are the point.  Where the run passes is a function of
+        both axes together -- X swings the far end across the beam and
+        Z carries it a hundred and fifty millimetres down inside the
+        frame or fifty above it -- so each axis driven to its end with
+        the other left at rest is five poses that miss every corner,
+        and the run really does pass through the frame at one of them.
 
         Two parts of the frame are drawn as more than one shell and
         cannot be asked for a shared volume at all -- the arc panel and
@@ -1692,9 +1704,9 @@ class Metamaquina2Test(TestCase):
         parts = [leaf for group in (self.node.frame, self.node.x_stage)
                  for leaf in self._leaves(group) if leaf is not handle_plate]
 
-        for driven in ({}, dict(x=self.declared_travel('x')[0]),
-                       dict(x=self.declared_travel('x')[1]),
-                       dict(z=0.0), dict(z=self.declared_travel('z')[1])):
+        for driven in [{}] + [dict(x=across, z=up)
+                              for across in self.declared_travel('x')
+                              for up in self.declared_travel('z')]:
             self.drive(x=XCarPosition, y=YCarPosition, z=ZCarPosition)
             if driven:
                 self.drive(**driven)
@@ -1719,6 +1731,51 @@ class Metamaquina2Test(TestCase):
                     self.assertGreater(
                         off, filament_diameter / 2,
                         f'the run touches {part.name} at {driven or "rest"}')
+
+    def test_the_run_crosses_above_the_head_and_not_only_the_frame(self):
+        """What the run has to get over is the print head, not the frame.
+
+        The crossing used to be two stock diameters over the highest
+        sheet the frame carries, on the stated ground that nothing on
+        this machine stands above it.  That is not so, and this asks
+        the machine for it rather than describing it: `ZCarPosition` is
+        the middle of the Z travel and not the top, and at the top the
+        beam lifts the extruder's channel mouth -- and the handle plate
+        thirty millimetres above it -- clear over every sheet the frame
+        carries.  A crossing derived from the frame is under the head
+        there, which is how the run came to be drawn through the
+        machine.
+
+        Then the clearance itself, asked as the equality it is: the
+        machine declares how much air it leaves over the head, and the
+        gap measured off the metal is that.  Greater-than alone would
+        pass for a crossing worked out from the frame and then padded
+        until the run happened to fit, which is the mistake this is
+        here to stop being made again.
+        """
+        self.drive(x=XCarPosition, y=YCarPosition,
+                   z=self.declared_travel('z')[1])
+
+        head = max(leaf.mesh.bounds[1][2]
+                   for leaf in self._leaves(self.node.x_stage))
+        frame = max(leaf.mesh.bounds[1][2]
+                    for leaf in self._leaves(self.node.frame))
+        self.assertGreater(
+            head, frame,
+            'the print head no longer stands above the frame at the top of '
+            'its travel, so the frame is what the run has to get over')
+
+        _, run = self.strand_parts()
+        under = run[filament.PATH_SAMPLES][2] - filament_diameter / 2
+        self.assertGreater(
+            under, head,
+            f'the run crosses {head - under} mm inside the print head')
+        self.assertAlmostEqual(
+            under - head, CROSSING_CLEARANCE - filament_diameter / 2,
+            delta=self.PLACED,
+            msg='the air the run leaves over the head is not the clearance '
+                'the machine declares, so the crossing is measured off '
+                'something else')
 
     def test_the_run_stops_where_the_machine_leaves_it_room(self):
         """Why the strand ends at the mouth and not further down.
