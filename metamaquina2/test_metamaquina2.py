@@ -38,6 +38,18 @@ teeth do is then asked exactly, in teeth and in sampled rings rather
 than in millimetres, because a tooth pattern is periodic and a test in
 millimetres could not tell one tooth from the next.
 
+The springs are asked something else again, because half of what a
+spring has to keep is not about the spring.  The catalogue line the
+design buys them by gives a diameter and a free length and nothing
+else, so the wire and the turn count are derived from what has to fit
+-- inside the coil, and between one coil and the next -- and the tests
+ask the metal for both rather than reading the derivation back.  The
+length is asked of the gap: a spring has to touch what it stands on and
+cut into nothing, and either half of that alone passes for something
+wrong.  Where the design states a length for the same gap and the
+statement disagrees with where its own parts stand, that disagreement
+is asked for too, so it cannot quietly go away.
+
 The two whole-model contracts `solid new` scaffolds --
 `assertNoDisconnectedSolids` and `assertNoSolidInterference` -- are
 deliberately not asserted, and it is worth being precise about why,
@@ -81,8 +93,12 @@ from metamaquina2.params import (
     XCarPosition,
     XZStage_offset,
     YCarPosition,
+    YPlatform_height,
+    YPlatform_zoffset,
     ZCarPosition,
     belt_width,
+    heatedbed_spring_compressed_length,
+    m3_washer_thickness,
 )
 from metamaquina2.x_stage import x_belt
 from metamaquina2.y_axis import y_belt
@@ -188,6 +204,26 @@ class Metamaquina2Test(TestCase):
     # one such place and so is the bottom of the travel -- so the
     # question has to be asked somewhere between two threads.
     OFF_PITCH = 111.7
+
+    # How far a spring may stand off the thing it is drawn to stand on.
+    #
+    # A coil touches a flat face along one tangent point, and what the
+    # mesh puts there is the flat of a sixteen-sided section a
+    # half-thousandth inside the wire's own circle. Five hundredths is
+    # two orders above that and two orders below the three tenths of a
+    # millimetre a spring drawn to the design's own compressed length
+    # would float by, which is the mistake this separates.
+    SEATED = 0.05
+
+    # How near a spring's derived bore has to land on the clearance it
+    # was derived for.
+    #
+    # Both surfaces are polygons inside their circles -- the shank a
+    # sixty-gon, the wire's section a sixteen-gon -- so the measured
+    # gap is a few thousandths wide of the exact one either way. Two
+    # hundredths covers that and nothing else: a wire a tenth of a
+    # millimetre out closes the bore by twice this.
+    BORE = 0.02
 
     # Which element of the Y loop wraps which of its four circles. A
     # wrap runs span, arc, span, arc from the first circle, so the arc
@@ -900,7 +936,12 @@ class Metamaquina2Test(TestCase):
 
             self.assertEqual(document_version(root), 3)
 
-            belts = self.flexible_nodes(root)
+            # By the parameter rather than by counting what is
+            # flexible: the springs are flexible leaves too, and this
+            # contract is the belts'.
+            belts = {path: published
+                     for path, published in self.flexible_nodes(root).items()
+                     if sorted(published['params']) == ['clamp']}
             self.assertEqual(sorted(belts),
                              ['x_stage.belt', 'y_axis.belt'])
 
@@ -910,6 +951,203 @@ class Metamaquina2Test(TestCase):
                 self.assertEqual(sorted(published['params']), ['clamp'])
                 self.assertIn(driver, declarations)
                 self.assertIn(driver, published['params']['clamp'])
+
+    ########################################
+    # The springs, which are as long as the space they are left
+
+    def test_the_machine_carries_six_springs_as_flexible_leaves(self):
+        """Four under the bed and two on the extruder handle.
+
+        A spring's shape follows the machine the way a belt's does --
+        squeeze it and it is a different solid, not the same solid
+        somewhere else -- so it makes no time-invariance promise and
+        the tree has to know that about it.  One port each, and it is
+        the length: everything else about a spring is the part that was
+        bought.
+        """
+        springs = [spring for spring, _ in self.springs()]
+        self.assertEqual(len(springs), 6)
+
+        for spring in springs:
+            self.assertTrue(spring.flexible, f'{spring.name} is not flexible')
+            self.assertFalse(spring.rigid,
+                             f'{spring.name} claims to be rigid')
+            self.assertEqual(spring.tech, 'molejo')
+            self.assertEqual(sorted(spring.bound_values()), ['height'])
+
+    def test_each_spring_is_one_closed_coil(self):
+        """A spring is a single closed band of wire.
+
+        Swept from a closed section along a helix, so it is watertight
+        by construction rather than by repair.  What this catches is
+        the construction going wrong: a coil left open at an end, or a
+        section wound the wrong way round.
+        """
+        for spring, _ in self.springs():
+            mesh = spring.mesh
+            self.assertTrue(mesh.is_watertight,
+                            f'{spring.name} is not a closed coil')
+            self.assertEqual(len(mesh.split(only_watertight=False)), 1,
+                             f'{spring.name} came out in pieces')
+            self.assertGreater(mesh.volume, 0,
+                               f'{spring.name} is inside out')
+
+    def test_each_bed_spring_stands_between_the_platform_and_the_bed(self):
+        """A bed spring fills the gap and neither floats nor bites.
+
+        The two halves have to be asked together.  A spring drawn to
+        the design's own `heatedbed_spring_compressed_length` would
+        clear the platform it stands on by three tenths of a
+        millimetre and still pass any check that only asked it not to
+        interfere; one drawn a little long would pass any check that
+        only asked it to touch.
+        """
+        platform = self.node.y_axis.platform
+        for screw in platform.level_screws:
+            self.assertSeatedOn(screw.spring, platform.plate)
+            self.assertSeatedOn(screw.spring, screw.seat_washer)
+
+    def test_the_bed_springs_follow_the_gap_and_not_the_design_number(self):
+        """The spring is as long as its neighbours leave it, and the
+        design's own number for that length is out.
+
+        `pcb_height` counts `heatedbed_spring_compressed_length` up
+        from a deck at `YPlatform_height`, while
+        `YPlatform_subassembly` stands that deck at a literal `100-15`.
+        The two differ, so the design states this one gap twice and
+        disagrees with itself; the spring follows the parts.
+        """
+        platform = self.node.y_axis.platform
+        screw = platform.level_screws[0]
+
+        gap = (platform.heated_bed.pcb.mesh.bounds[0][2]
+               - platform.plate.mesh.bounds[1][2])
+
+        self.assertAlmostEqual(
+            screw.spring.installed + m3_washer_thickness, gap,
+            delta=self.PLACED,
+            msg='the spring and its washer do not fill the gap they are in')
+        self.assertAlmostEqual(
+            heatedbed_spring_compressed_length - gap,
+            YPlatform_zoffset - YPlatform_height, delta=self.PLACED,
+            msg=("the design's spring length and the gap its own parts "
+                 "leave no longer differ by its two statements of the deck"))
+
+    def test_the_bed_springs_travel_with_the_bed(self):
+        """Driving Y carries the springs, because they are the bed's.
+
+        A spring is redrawn at every render, so a placement mistake
+        here would not show as a part left behind: it would show as a
+        spring drawn correctly in the wrong place, which is why this
+        asks the bounds rather than the shape.
+        """
+        platform = self.node.y_axis.platform
+        at_rest = [screw.spring.mesh.bounds
+                   for screw in platform.level_screws]
+
+        self.drive(y=YCarPosition - 70)
+
+        for screw, was in zip(platform.level_screws, at_rest):
+            self.assertMovedBy(screw.spring, was, [0, -70, 0])
+
+    def test_each_idler_spring_seats_on_the_idler_back_plate(self):
+        """The idler springs push the arm shut, not open.
+
+        Which side of the back plate a spring stands on is the whole
+        question: on the far side it presses the bearing onto the
+        filament, on the near side it would pull the idler away from
+        the hobbed bolt and the extruder would grip nothing.
+        """
+        extruder = self.node.x_stage.carriage.extruder
+        plate = extruder.idler.back_plate
+
+        # Which side is which, without naming an axis: the lever is at
+        # one end of the bolts and the head at the other, so the spring
+        # is on the right side of the plate when it stands further from
+        # the lever than the plate does.
+        lever = extruder.handle.plate.mesh.bounds.mean(axis=0)
+        beyond = numpy.linalg.norm(
+            plate.mesh.bounds.mean(axis=0) - lever)
+
+        for spring, washer in zip(extruder.handle.springs,
+                                  extruder.handle.spring_washers):
+            self.assertSeatedOn(spring, washer)
+            self.assertSeatedOn(washer, plate)
+            self.assertGreater(
+                numpy.linalg.norm(spring.mesh.bounds.mean(axis=0) - lever),
+                beyond,
+                f'{spring.name} stands on the lever side of {plate.name}, '
+                f'where compressing it would swing the idler open')
+
+    def test_each_spring_clears_the_bolt_it_is_threaded_on(self):
+        """A spring runs on its bolt without touching it.
+
+        The bill of materials names a spring by an outside diameter
+        only, so the wire is derived from what has to fit inside it:
+        this is that derivation asked of the metal.  A wire drawn too
+        thick closes the bore onto the shank; too thin and the spring
+        is a different spring from the one that was bought.
+        """
+        for spring, bolt in self.springs():
+            gap = trimesh.proximity.closest_point(
+                bolt.mesh, spring.mesh.vertices)[1].min()
+            self.assertAlmostEqual(
+                gap, spring.bore_clearance / 2, delta=self.BORE,
+                msg=(f'{spring.name} runs {gap} mm off {bolt.name}, not the '
+                     f'{spring.bore_clearance / 2} its bore is derived for'))
+
+    def test_each_spring_stands_open_at_the_length_it_is_installed(self):
+        """The coils clear each other, and the spring is compressed.
+
+        The catalogue line gives a diameter and a free length and no
+        coil count, so the count is derived from the room there is for
+        one: the most whole turns that still leave a wire's thickness
+        between consecutive coils where the design installs the spring.
+
+        No spring is drawn longer than it is free, because a stretched
+        compression spring is not a drawing of anything.  The bed's
+        four are drawn shorter, because the gap the design leaves them
+        is shorter than they are; the extruder's two are drawn at free
+        length, because the design draws their tension nut at the very
+        end of its thread and names no setting in from there.
+        """
+        platform = self.node.y_axis.platform
+
+        for spring, _ in self.springs():
+            clearance = spring.height.value / spring.turns
+            self.assertGreaterEqual(
+                clearance, 2 * spring.wire_diameter,
+                f'{spring.name} closes on itself at the length it is in')
+            self.assertLessEqual(
+                spring.installed, spring.free_length,
+                f'{spring.name} is drawn longer than its free length')
+
+        for screw in platform.level_screws:
+            self.assertLess(
+                screw.spring.installed, screw.spring.free_length,
+                f'{screw.spring.name} carries no load under the bed')
+
+    def test_the_springs_travel_into_the_viewer_as_shapes(self):
+        """A spring is published as its shape, not as a mesh.
+
+        The same contract the belts keep, and for the day the bed's
+        level or the idler's release becomes a driver: whatever opens
+        the document has to be able to redraw a spring at a length
+        nobody has evaluated yet.
+        """
+        with symbolic_document(self.node) as (_, __):
+            root = serialize_node(self.node, lambda node: node.stl_file)
+
+            flexible = self.flexible_nodes(root)
+            springs = {path: published
+                       for path, published in flexible.items()
+                       if sorted(published['params']) == ['height']}
+
+            self.assertEqual(len(springs), 6)
+            for path, published in springs.items():
+                self.assertEqual(published['tech'], 'molejo', path)
+                self.assertEqual(published['spec']['path'][0]['type'],
+                                 'helix', path)
 
     ########################################
     # What the machine can be told to do
@@ -1287,6 +1525,37 @@ class Metamaquina2Test(TestCase):
             stepped[clamped], teeth_at_rest[before], atol=self.PLACED,
             err_msg=(f"{belt.name}'s teeth did not step exactly one ring "
                      f"along the run they are clamped to"))
+
+    def springs(self):
+        """Every spring in the machine, with the bolt it runs on.
+
+        Paired rather than listed, because half of what a spring has to
+        keep is a relationship to the shank inside it: the wire's
+        thickness is derived from the room there is between the two.
+        """
+        platform = self.node.y_axis.platform
+        handle = self.node.x_stage.carriage.extruder.handle
+        return ([(screw.spring, screw.bolt)
+                 for screw in platform.level_screws]
+                + list(zip(handle.springs, handle.bolts)))
+
+    def assertSeatedOn(self, spring, part):
+        """`spring` stands on `part`: touching it, and cutting into
+        nothing.
+
+        Both halves, because either alone passes for something wrong --
+        a spring floating in its gap keeps the first, a spring drawn
+        through the sheet under it keeps the second. The boolean is
+        taken here rather than through `assertNotIntersecting` for the
+        reason `assertRidesOn` gives: a flexible part has no cached STL
+        for that assertion to reach for.
+        """
+        self.assertRidesOn(spring, part)
+        reach = trimesh.proximity.closest_point(
+            part.mesh, spring.mesh.vertices)[1].min()
+        self.assertLess(
+            reach, self.SEATED,
+            f'{spring.name} stands {reach} mm clear of {part.name}')
 
     def assertRidesOn(self, belt, part):
         """`belt` touches `part` without cutting into it.

@@ -52,6 +52,27 @@ what a GT2 belt and its pulley are lives in `gt2.py`, the part is in
 `hardware/gt2_pulley.py`, and the loops themselves are in
 `x_stage/x_belt.py` and `y_axis/y_belt.py`.
 
+The springs are the other thing that is not where it is put, and they
+are the plainer case.  A belt's shape follows the machine because the
+rubber inside a standing loop travels; a spring's shape follows the
+machine because the thing is shorter when you press on it.  The design
+buys six and draws none, in two blocks it heads "TODO: Add these parts
+to the CAD model": four hold the heated bed up off the Y platform so a
+nut at each corner can pull it down until the bed is level, and two
+ride the extruder handle's long bolts and press the idler onto the
+filament.  What a compression spring is here is in `spring.py`; the
+parts are in `y_axis/platform/` and `x_stage/carriage/extruder/`.
+
+Two things about them are worth knowing without reading further.  The
+bill of materials names a spring the way a catalogue does -- a
+reference, an outside diameter, a free length -- and says nothing about
+the wire or the number of turns, which are the two numbers a drawing
+needs; so both are derived from what has to fit, and both come out
+round for both springs.  And a spring is drawn to the room its
+neighbours leave rather than to a length written down, which is how the
+bed's turned out to be a place the design states one distance twice and
+disagrees with itself by three tenths of a millimetre.
+
 Where the geometry comes from is in `scad.py`, where the dimensions
 come from is in `params.py`, and how a part is authored is in
 `part.py`.

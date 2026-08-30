@@ -103,6 +103,7 @@ _machine = _probe('Metamaquina2.scad', [
     'heated_bed_pcb_width', 'heated_bed_pcb_height',
     'glass_w', 'glass_h',
     'BuildPlatform_height', 'pcb_height',
+    'heatedbed_spring_length', 'heatedbed_spring_compressed_length',
     # the frame
     'machine_height', 'machine_x_dim',
     'SidePanels_distance', 'RightPanel_basewidth', 'RightPanel_topwidth',
@@ -137,7 +138,9 @@ _machine = _probe('Metamaquina2.scad', [
     'ZLink_rod_height', 'Zlink_hole_height',
     # hardware
     'lm8uu_diameter', 'lm8uu_length',
-    'm3_diameter', 'm3_washer_thickness', 'm3_nut_height', 'm3_spacer_radius',
+    'm3_diameter', 'm3_washer_thickness', 'm3_washer_D',
+    'm3_nut_height', 'm3_spacer_radius',
+    'm4_diameter', 'm4_washer_thickness',
     'm8_diameter', 'm8_nut_R', 'm8_nut_height', 'm8_washer_thickness',
     'm8_mudguard_washer_thickness',
     'NEMA17_width', 'NEMA17_height', 'NEMA17_length',
@@ -171,6 +174,9 @@ glass_w = _machine['glass_w']
 glass_h = _machine['glass_h']
 BuildPlatform_height = _machine['BuildPlatform_height']
 pcb_height = _machine['pcb_height']
+heatedbed_spring_length = _machine['heatedbed_spring_length']
+heatedbed_spring_compressed_length = (
+    _machine['heatedbed_spring_compressed_length'])
 
 # the frame
 machine_height = _machine['machine_height']
@@ -252,8 +258,11 @@ lm8uu_diameter = _machine['lm8uu_diameter']
 lm8uu_length = _machine['lm8uu_length']
 m3_diameter = _machine['m3_diameter']
 m3_washer_thickness = _machine['m3_washer_thickness']
+m3_washer_D = _machine['m3_washer_D']
 m3_nut_height = _machine['m3_nut_height']
 m3_spacer_radius = _machine['m3_spacer_radius']
+m4_diameter = _machine['m4_diameter']
+m4_washer_thickness = _machine['m4_washer_thickness']
 m8_diameter = _machine['m8_diameter']
 m8_nut_R = _machine['m8_nut_R']
 m8_nut_height = _machine['m8_nut_height']
@@ -369,6 +378,11 @@ washer_thickness = 1.5         # bearing_assembly() in Metamaquina2.scad
 mudguard_washer_thickness = 2  # bearing_assembly() in Metamaquina2.scad
 barclamp_thickness = 13.5      # bar_clamp_assembly() in Metamaquina2.scad
 idler_radius = 23              # idler() in lasercut_extruder.scad
+heated_bed_hole_border = 5     # heated_bed_pcb_curves() in heated_bed.scad:
+                               # how far in from each edge the four mounting
+                               # holes are cut.  The platform sheet is cut
+                               # from the same module, so both sheets carry
+                               # this one pattern.
 handle_bolt_length = 70        # handle() in lasercut_extruder.scad
 handle_nut_height = 3          # handle() in lasercut_extruder.scad
 idler_bolt_length = 30         # idler_bolt_subassembly()

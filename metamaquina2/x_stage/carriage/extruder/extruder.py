@@ -14,7 +14,7 @@ from metamaquina2.params import (
     thickness,
 )
 from metamaquina2.x_stage.carriage.extruder.block import ExtruderBlock
-from metamaquina2.x_stage.carriage.extruder.handle import Handle
+from metamaquina2.x_stage.carriage.extruder.handle import POSITION, Handle
 from metamaquina2.x_stage.carriage.extruder.hobbed_bolt import HobbedBolt
 from metamaquina2.x_stage.carriage.extruder.idler.idler import Idler
 from metamaquina2.x_stage.carriage.extruder.large_gear import ExtruderGear
@@ -51,7 +51,7 @@ class Extruder(AssemblyNode):
         self.handle = (Handle()
                        .rotate(-90, [0, 0, 1])
                        .rotate(-90, [0, 1, 0])
-                       .translate([7, 0, 58]))
+                       .translate(POSITION))
 
         self.gear = (ExtruderGear()
                      .rotate(90, [1, 0, 0])

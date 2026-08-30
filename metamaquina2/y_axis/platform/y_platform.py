@@ -9,6 +9,9 @@ from metamaquina2.params import (
     YPlatform_zoffset,
     Y_rods_distance,
     bearing_sandwich_spacing,
+    heated_bed_hole_border,
+    heated_bed_pcb_height,
+    heated_bed_pcb_width,
     lm8uu_diameter,
     pcb_height,
     thickness,
@@ -17,6 +20,7 @@ from metamaquina2.y_axis.heated_bed.heated_bed import HeatedBed
 from metamaquina2.y_axis.platform.belt_clamp import YBeltClamp
 from metamaquina2.y_axis.platform.endstop_holder import YEndstopHolder
 from metamaquina2.y_axis.platform.left_sandwich import LeftBearingSandwich
+from metamaquina2.y_axis.platform.level_screw import BedLevelScrew
 from metamaquina2.y_axis.platform.platform_plate import YPlatformPlate
 from metamaquina2.y_axis.platform.right_sandwich import RightBearingSandwich
 from metamaquina2.y_axis.platform.sandwich_bolt import SandwichBolt
@@ -27,7 +31,14 @@ class YPlatform(AssemblyNode):
 
     One plate, three linear bearings trapped under it by two sandwich
     plates, the spacers that set the gap, four belt clamps, two endstop
-    tabs and the heated bed on top.
+    tabs, and the heated bed standing on four springs on top.
+
+    The bed does not sit on the plate: it floats above it on the four
+    levelling screws, which is how a bed gets level on a machine whose
+    platform was cut by a laser.  The plate is cut from the board's own
+    outline -- `YPlatform_face` differences its cuts out of
+    `heated_bed_pcb_curves` -- so the four corner holes go through both
+    sheets at once and the screws stand on the pattern they share.
 
     Three bearings, not four: one on the left rod and two on the right.
     That is the design's choice and it is what makes the platform
@@ -53,6 +64,14 @@ class YPlatform(AssemblyNode):
 
         self.heated_bed = HeatedBed().translate([0, 0, pcb_height])
         self.plate = YPlatformPlate().translate([0, 0, deck])
+
+        self.level_screws = [
+            BedLevelScrew().translate(
+                [across * (heated_bed_pcb_width / 2 - heated_bed_hole_border),
+                 along * (heated_bed_pcb_height / 2 - heated_bed_hole_border),
+                 deck + thickness])
+            for across in (-1, 1) for along in (-1, 1)
+        ]
 
         self.belt_clamps = []
         for offset in self.belt_clamp_offsets:
@@ -111,6 +130,7 @@ class YPlatform(AssemblyNode):
 
     def render(self):
         return ([self.heated_bed, self.plate]
+                + self.level_screws
                 + self.belt_clamps
                 + self.spacers
                 + [self.left_sandwich] + self.left_bolts

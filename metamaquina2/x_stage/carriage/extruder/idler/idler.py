@@ -34,6 +34,14 @@ class Idler(AssemblyNode):
     plate_clearance = 0.5
     spacer_clearance = 1.0
 
+    # Where the back plate's outer face stands, in the extruder's own
+    # flat frame: a radius out from the pivot, which is where the notch
+    # cut into each side plate seats it.  The handle's two long bolts
+    # pass through this plate, and their springs stand on this face --
+    # the far one, so that compressing a spring swings the arm shut on
+    # the filament rather than open.
+    back_face = idler_axis_position[0] - idler_radius
+
     def __init__(self, *args, **kwargs):
         axis_x, axis_y = idler_axis_position
         bearing_x, bearing_y = idler_bearing_position

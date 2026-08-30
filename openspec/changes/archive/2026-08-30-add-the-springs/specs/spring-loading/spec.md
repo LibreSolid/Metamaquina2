@@ -57,6 +57,12 @@ and the coil count SHALL be the most whole turns that still leave a clear
 wire diameter between consecutive coils at the length the spring is
 installed at. Neither SHALL be written down as a literal.
 
+No spring SHALL be drawn longer than the free length it is bought at. A
+spring whose neighbours leave it less room than that SHALL be drawn
+compressed to the room they leave; a spring the design gives no setting
+for SHALL be drawn at its free length rather than at an invented preload,
+and the adjustment the design leaves for it SHALL be recorded.
+
 #### Scenario: A spring is threaded on its bolt
 - **WHEN** a spring and the bolt running through it are compared
 - **THEN** the bolt passes through the coil without touching it, at the
@@ -65,8 +71,13 @@ installed at. Neither SHALL be written down as a literal.
 #### Scenario: A spring is measured at its installed length
 - **WHEN** a spring is built at the length its assembly binds
 - **THEN** consecutive coils clear each other by at least the wire's own
-  diameter, and the spring is shorter than the free length the bill of
+  diameter, and the spring is no longer than the free length the bill of
   materials buys
+
+#### Scenario: The bed's springs are compared with their free length
+- **WHEN** a bed spring's installed length is compared with its free length
+- **THEN** it is shorter, so the spring is under load and the corner it
+  holds can be levelled against it
 
 ### Requirement: A spring is one closed watertight body
 Each spring SHALL come out of its evaluator as a single closed band of wire,
