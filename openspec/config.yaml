@@ -1,0 +1,36 @@
+schema: spec-driven
+
+# Project context shown to AI when creating artifacts.
+context: |
+  Metamaquina2 is the decade-old OpenSCAD design of the Metamaquina 2
+  desktop 3D printer, plus a solid-node wrapper started in August 2026:
+  the Python package `metamaquina2/` reads the unchanged .scad sources
+  as a solid_node assembly tree in which every part a builder handles
+  is a leaf, every group assembled before it goes into something bigger
+  is an AssemblyNode, and the machine's motion is three drivers on the
+  root. The entry point is declared in pyproject.toml as
+  `metamaquina2.metamaquina2:Metamaquina2`.
+
+  Conventions:
+  - The OpenSCAD design is the source of truth for geometry and
+    dimensions. The wrapper never restates a dimension it can probe
+    from the .scad sources, and a deliberate departure from the design
+    (a wrong literal, an unbought part) is derived from the design's
+    own numbers and recorded where it is made.
+  - TDD: contracts run red first, one commit per increment. Tests
+    assert placement and motion -- the one thing this layer is
+    responsible for -- not the module geometry, which was correct
+    before the wrapper existed.
+  - Exact solids (OCCT) are used only where a tessellation is entitled
+    to be wrong by more than the contract measures, e.g. the 0.05 mm
+    thread clearance; everything else stays OpenSCAD.
+  - The whole-model contracts `assertNoDisconnectedSolids` and
+    `assertNoSolidInterference` are deliberately not asserted: the
+    design draws several bought parts as multiple bodies on purpose,
+    and lets fasteners share volume with the sheets they clamp.
+    Making them true is a change to the OpenSCAD design, not to the
+    wrapper.
+
+rules:
+  specs:
+    - Describe observable behavior of the current system only; no aspirational requirements in main specs.
