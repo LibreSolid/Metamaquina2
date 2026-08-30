@@ -86,6 +86,16 @@ class GT2Pulley(ScadPart):
     #: resolves; and about what a machined pulley and a moulded belt
     #: really run with.
     #:
+    #: The bore gets it too, opened rather than cut back, and for the
+    #: second half of the same reason.  A bore drawn at exactly the
+    #: shaft's nominal radius is not a slip fit, it is the same circle
+    #: twice -- and two OpenSCAD circles of one radius are two polygons
+    #: whose flats fall inside it, so at any relative angle but the one
+    #: where their vertices coincide each pokes through the other.  Five
+    #: hundredths of a cubic millimetre of it, which showed the moment
+    #: this pulley began to turn.  A real pulley is bored a little over
+    #: its shaft and pinched onto it with a grub screw.
+    #:
     #: It is also the measured figure.  Where a tooth is halfway out of
     #: a groove the drawn belt still grazes the drawn pulley by a few
     #: hundredths, and how much depends on where in a tooth the
@@ -149,5 +159,6 @@ class GT2Pulley(ScadPart):
         return points
 
     def render(self):
-        section = polygon(self.outline()) - curve('circle', r=self.bore / 2)
+        section = polygon(self.outline()) - curve(
+            'circle', r=self.bore / 2 + self.CLEARANCE)
         return section.linear_extrude(self.width)

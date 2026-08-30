@@ -27,9 +27,12 @@ line*.  Three consequences shape everything below.
   between a toothed pulley, whose grooves swallow the teeth, and a plain
   bearing, which the tooth tips ride on.  Hence `on_pulley` and
   `on_idler` rather than one function.
-* The circles must be ordered clockwise.  The design lists the Y belt's
-  three idlers the other way round, so that node lists them reversed:
-  the same loop, run the way molejo runs it.
+* The circles must be ordered clockwise, and each carries which way the
+  belt turns about it -- clockwise for one inside the loop, the other
+  way for one the belt is bent backwards over.  The design lists the Y
+  belt's three idlers the other way round, so that node lists them
+  reversed: the same loop, run the way molejo runs it, with the motor
+  pulley put in between the two at the rear.
 * A belt clamped to a carriage is anchored at a distance *along* one
   tangent span, while a carriage is at a position along the machine's
   axis.  Converting between the two needs to know where the span starts
@@ -126,9 +129,44 @@ would swallow it, but because a tooth of belt is one groove of pulley
 only when the two circles are the same circle, and a drive ratio ought
 not to have a number in it that nothing chose.
 
-The Y motor gets the same part and no mesh: the loop the design draws
-runs on three bare bearings and never reaches the motor, so there is
-nothing for those teeth to engage and nothing to derive an angle from.
+And what the Y loop then found
+------------------------------
+
+The Y motor got the same part and, at first, no mesh at all: the loop
+the design draws runs three bare bearings and passes 22 mm clear of the
+pulley, so there was nothing for those teeth to engage and no angle to
+derive.  A belt that reaches no motor is not a drive, and the machine it
+is drawn from is driven -- so the loop was wrong, not the pulley.
+
+What the machine really does is what the two rear bearings are for.
+They stand 58 mm apart with the motor 40 mm inside the line between
+them, and the belt is threaded *between* them and *over* the pulley:
+it leaves the upper bearing on an internal tangent, hugs the pulley from
+the far side through 156 degrees, and crosses back out to the lower one.
+The loop is concave there where it is convex everywhere else, which is a
+reverse bend, and a reverse bend is how a belt is driven from outside
+its own circuit.
+
+Two things follow, and they are the same thing said twice.
+
+* The teeth are on the other face.  A belt has teeth on one side; on the
+  X loop that side faces in, because its pulley is inside the circuit.
+  On the Y loop it faces out, so the three bare 608 races carry the
+  smooth back -- which is what a bare race is for -- and the toothed
+  face is the one that comes round onto the pulley at the bend.  The
+  belt's material sits in exactly the same band either way; only the
+  pitch line moves inside it.  See `section` and `on_idler`.
+* The belt turns the other way about that one circle, and the profile
+  frame turns with it: local x swings from pointing away from a circle
+  to pointing at it, which is precisely what puts the outward face
+  against the pulley.  The sign shows up again in `y_belt.pulley_angle`,
+  where belt running on turns this pulley the opposite way to the X one.
+
+Neither was something molejo could draw.  A v1 wrap runs the external
+tangents of every circle and displaces the profile's inner face only, so
+both had to be added there -- a `turn` on a circle and a `face` on the
+teeth -- and this module's restatement of the wrap rule in `spans`,
+`_arcs` and `_normals` follows it: each radius signed by its sense.
 
 One mismatch between the design and its own bill of materials is left
 standing, because it is the design's to settle: the BOM buys 6 mm belt
@@ -184,46 +222,71 @@ BACK = THICKNESS - TOOTH_HEIGHT - PITCH_LINE
 PATH_SAMPLES = 1024
 
 
-def section(width):
+def section(width, face='inner'):
     """The belt's cross-section, as molejo takes it.
 
     In a wrap's profile frame local x is the outward normal and local y
     is the world +Z the belt's width runs along, so this is the belt
-    seen end-on with its teeth to the left.  The points run
-    counter-clockwise, which is molejo's winding, and the two at the
-    minimum x are the inner face `Teeth` displaces into teeth.
+    seen end-on.  The points run counter-clockwise, which is molejo's
+    winding, and the two on the face named by `face` are the ones `Teeth`
+    displaces.
+
+    A belt has teeth on one face and which one is the loop's business
+    rather than the section's.  The X loop is driven from inside its own
+    circuit, so its teeth are on the inner face, at the minimum x; the Y
+    loop is driven from outside it, over a reverse bend, so its teeth are
+    on the outer face and its smooth back is what rides the three
+    bearings.  Either way the belt is `THICKNESS` thick and the pitch
+    line sits `PITCH_LINE` in from the toothed side of it; all that moves
+    is which side that is.
 
     The width runs from nought to `width` rather than either side of
     nought, so that a node placing this loop places it exactly where the
     design's own ``linear_extrude(belt_width)`` put its hulled ring.
     """
+    if face == 'outer':
+        inner, outer = -BACK, PITCH_LINE
+    else:
+        inner, outer = -PITCH_LINE, BACK
     return Polygon([
-        (-PITCH_LINE, 0.0),
-        (BACK, 0.0),
-        (BACK, width),
-        (-PITCH_LINE, width),
+        (inner, 0.0),
+        (outer, 0.0),
+        (outer, width),
+        (inner, width),
     ])
 
 
-def on_pulley(centre, radius):
+def on_pulley(centre, radius, turn='clockwise'):
     """The pitch circle of a belt meshed on a toothed pulley.
 
     The pulley's teeth stand in the gaps between the belt's, so what
     touches the pulley's flank circle is the land between two teeth, and
-    the pitch line is one pitch line differential outside it.
+    the pitch line is one pitch line differential outside it.  That is
+    true of a pulley inside the loop and of one the belt is bent
+    backwards over alike -- the belt is the same distance from the metal
+    either way -- so `turn` changes only which side of the belt is
+    against it, and molejo is what is told about that.
     """
-    return {'center': [centre[0], centre[1]], 'radius': radius + PITCH_LINE}
+    circle = {'center': [centre[0], centre[1]], 'radius': radius + PITCH_LINE}
+    if turn != 'clockwise':
+        circle['turn'] = turn
+    return circle
 
 
-def on_idler(centre, radius):
-    """The pitch circle of a belt running teeth-down on a plain bearing.
+def on_idler(centre, radius, face='inner'):
+    """The pitch circle of a belt running on a plain bearing.
 
-    Both machines' idlers are 608 bearings with nothing to mesh with, so
-    the belt rides them on its tooth *tips* -- a whole tooth further out
-    than it sits on a pulley.
+    Every idler in both machines is a 608 bearing with nothing to mesh
+    with, so what it carries is whichever face of the belt happens to be
+    against it.  A belt with its teeth inward rides on its tooth *tips*,
+    a whole tooth out from where it would sit on a pulley; a belt with
+    its teeth outward presents its smooth back instead, which is only
+    `BACK` out.  The two put the belt's material in exactly the same
+    band -- it is `THICKNESS` thick and its inner face is on the race
+    either way -- and move only the pitch line inside it.
     """
-    return {'center': [centre[0], centre[1]],
-            'radius': radius + TOOTH_HEIGHT + PITCH_LINE}
+    reach = BACK if face == 'outer' else TOOTH_HEIGHT + PITCH_LINE
+    return {'center': [centre[0], centre[1]], 'radius': radius + reach}
 
 
 def pulley_teeth(radius):
@@ -395,10 +458,10 @@ def pitch(circles):
     return length(circles) / tooth_count(circles)
 
 
-def teeth(circles):
+def teeth(circles, face='inner'):
     """The tooth pattern of a GT2 belt run around `circles`."""
     return Teeth(pitch=PITCH, height=TOOTH_HEIGHT, flank='trapezoid',
-                 count=tooth_count(circles))
+                 count=tooth_count(circles), face=face)
 
 
 def length(circles):
@@ -440,10 +503,13 @@ def spans(circles):
     """The loop's tangent spans, each as (start, direction, length).
 
     molejo's rule, restated: for consecutive circles at distance *L*
-    with radii *r* and *r'*, the outward normal both are touched along
-    is ``n = d*u + sqrt(1 - d*d)*rot90(u)`` for ``d = (r - r')/L`` and
-    ``u`` the unit vector between the centres, and the belt runs from
-    one tangent point to the next in the direction ``(n_y, -n_x)``.
+    with radii *r* and *r'*, each signed by which way the belt turns
+    about it, the normal both are touched along is
+    ``n = d*u + sqrt(1 - d*d)*rot90(u)`` for ``d = (r - r')/L`` and ``u``
+    the unit vector between the centres, and the belt runs from one
+    tangent point to the next in the direction ``(n_y, -n_x)``.  Where
+    the two senses agree that is the external tangent; where they differ
+    it is the internal one, which crosses between the centres.
     """
     normals = _normals(circles)
     result = []
@@ -456,26 +522,59 @@ def spans(circles):
     return result
 
 
+def stations(circles):
+    """Where each of the loop's 2k elements begins, in belt.
+
+    Span 0, the arc about circle 1, span 1, ... and finally the arc
+    about circle 0, which is molejo's own ordering: the loop's origin is
+    where the belt leaves the first circle.  An anchor is measured from
+    the start of a span and a pulley's phase from the start of its own
+    arc, so converting between the two needs to know where both of them
+    begin.
+    """
+    lengths = []
+    arcs = _arcs(circles)
+    for index, span in enumerate(spans(circles)):
+        lengths.append(span[2])
+        lengths.append(arcs[index])
+    travelled, at = [], 0.0
+    for length in lengths:
+        travelled.append(at)
+        at += length
+    return travelled
+
+
+def _sense(circle):
+    """Which way the belt turns about `circle`: ``-1`` where the loop is
+    concave, because the belt is bent backwards over it."""
+    return -1.0 if circle.get('turn') == 'counterclockwise' else 1.0
+
+
 def _arcs(circles):
     """How much belt is wrapped around each circle, in order.
 
     The belt arrives on the normal of the span before a circle and
-    leaves on the normal of the span after it, and turns clockwise
-    between the two.
+    leaves on the normal of the span after it, and turns between the two
+    the way that circle's sense says.  What it arrives at is the point a
+    radius along that normal or a radius against it, so the angles are
+    taken from the signed normal rather than the normal itself.
     """
     normals = _normals(circles)
     lengths = []
     for index in range(len(circles)):
         following = (index + 1) % len(circles)
-        arrival = math.atan2(normals[index][1], normals[index][0])
-        departure = math.atan2(normals[following][1], normals[following][0])
-        turn = (arrival - departure) % (2 * math.pi)
+        onward = _sense(circles[following])
+        arrival = math.atan2(onward * normals[index][1],
+                             onward * normals[index][0])
+        departure = math.atan2(onward * normals[following][1],
+                               onward * normals[following][0])
+        turn = (onward * (arrival - departure)) % (2 * math.pi)
         lengths.append(circles[following]['radius'] * turn)
     return lengths
 
 
 def _normals(circles):
-    """The outward normal the belt touches each circle on, in order."""
+    """The normal the belt touches each circle on, in order."""
     normals = []
     for index in range(len(circles)):
         following = (index + 1) % len(circles)
@@ -484,7 +583,8 @@ def _normals(circles):
                    there['center'][1] - here['center'][1])
         distance = math.hypot(*between)
         unit = (between[0] / distance, between[1] / distance)
-        delta = (here['radius'] - there['radius']) / distance
+        delta = (_sense(here) * here['radius']
+                 - _sense(there) * there['radius']) / distance
         sideways = math.sqrt(1.0 - delta * delta)
         normals.append((delta * unit[0] - sideways * unit[1],
                         delta * unit[1] + sideways * unit[0]))
@@ -493,8 +593,9 @@ def _normals(circles):
 
 def _touch(circle, normal):
     """Where a belt running on `normal` touches `circle`."""
-    return (circle['center'][0] + circle['radius'] * normal[0],
-            circle['center'][1] + circle['radius'] * normal[1])
+    reach = _sense(circle) * circle['radius']
+    return (circle['center'][0] + reach * normal[0],
+            circle['center'][1] + reach * normal[1])
 
 
 class Belt(MolejoNode):

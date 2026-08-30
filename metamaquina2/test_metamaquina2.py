@@ -65,6 +65,7 @@ from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
+    IdlerRadius,
     PulleyRadius,
     XCarPosition,
     YCarPosition,
@@ -135,6 +136,29 @@ class Metamaquina2Test(TestCase):
     # point in turn, which is where a tooth is halfway out and the
     # geometry is at its tightest.
     PHASES = 8
+
+    # How far from a pulley's axis a belt is still worth measuring
+    # against it.
+    #
+    # `closest_point` compares every query point with every triangle at
+    # once, so handing it a whole belt is gigabytes of intermediate --
+    # and an out-of-memory kill on the Y loop, whose 32768 vertices
+    # against 4224 pulley faces come to three -- for an answer that can
+    # only come from the twenty millimetres of belt actually on the
+    # pulley. Fifteen takes the wrapped arc and the tangent runs either
+    # side of it; the nearest belt this excludes is the Y loop's bottom
+    # run, 34 mm from that pulley's axis and in no danger of holding the
+    # minimum.
+    NEARBY = 15
+
+    # Which element of the Y loop wraps which of its four circles. A
+    # wrap runs span, arc, span, arc from the first circle, so the arc
+    # about circle n is element 2n - 1, and `y_belt` lists them front,
+    # lower, pulley, rear.
+    LOWER_ARC = 1
+    PULLEY_ARC = y_belt.PULLEY_ARC
+    REAR_ARC = 5
+    FRONT_ARC = 7
 
     def setUp(self):
         """Start every test from the rest pose.
@@ -426,6 +450,66 @@ class Metamaquina2Test(TestCase):
                       bars.rear.lower_idler):
             self.assertRidesOn(self.node.y_axis.belt, idler.bearing)
 
+    def test_the_y_belt_rides_the_bar_idlers_on_its_smooth_back(self):
+        """The three bearings carry the belt's back, not its teeth.
+
+        Which is what "the teeth face outward" is, measured where it can
+        be: a bare 608 race has nothing to mesh with, so a belt that
+        presented its teeth to it would stand on their tips and its
+        contact face would rise and fall a whole tooth height between
+        one crest and the next.  This one is a smooth band, so every
+        ring of every wrapped arc is at exactly the race's own radius.
+
+        Asked of the arcs by name rather than of whatever happens to be
+        near a bearing, because the straight runs leave on a tangent and
+        the first millimetre of one is a hair off the race for reasons
+        that have nothing to do with teeth.
+        """
+        bars = self.node.frame.bars
+        belt = self.node.y_axis.belt
+        for idler, element in ((bars.front.idler, self.FRONT_ARC),
+                               (bars.rear.lower_idler, self.LOWER_ARC),
+                               (bars.rear.upper_idler, self.REAR_ARC)):
+            axis = idler.bearing.mesh.bounds.mean(axis=0)
+            back = self.arc_rings(belt, element)[:, 0]
+            reach = numpy.hypot(back[:, 1] - axis[1], back[:, 2] - axis[2])
+            numpy.testing.assert_allclose(
+                reach, IdlerRadius, atol=self.PLACED,
+                err_msg=(f'the Y belt does not lie flat on '
+                         f'{idler.bearing.name}'))
+
+    def test_the_y_belt_turns_its_teeth_onto_the_pulley(self):
+        """Over the pulley the belt is bent backwards, teeth inward.
+
+        The other half of the same fact, and the half that makes the
+        axis a drive.  Round the three bearings the loop is convex and
+        the teeth stand outside it; round the pulley it is concave, the
+        belt turns the other way, and the toothed face is the one
+        against the metal.
+
+        Measured as a range rather than a value, because that is what a
+        tooth pattern is: on the pulley's arc the belt's toothed face
+        reaches from the pulley's own flank circle, where the land
+        between two teeth rides, to a whole tooth height inside it,
+        where a crest sits in a groove.  A belt merely passing by would
+        be a wrap's radius away from both.
+        """
+        pulley = self.node.y_axis.motor.pulley
+        axis = pulley.mesh.bounds.mean(axis=0)
+        toothed = self.arc_rings(self.node.y_axis.belt, self.PULLEY_ARC)[:, 1]
+        reach = numpy.hypot(toothed[:, 1] - axis[1], toothed[:, 2] - axis[2])
+
+        flanks = y_belt.PULLEY_RADIUS
+        self.assertAlmostEqual(
+            reach.max(), flanks, delta=self.PLACED,
+            msg=(f'the land between the belt\'s teeth rides {reach.max()} mm '
+                 f'from the pulley axis, not the {flanks} its flanks stand '
+                 f'at'))
+        self.assertAlmostEqual(
+            reach.min(), flanks - gt2.TOOTH_HEIGHT, delta=self.PLACED,
+            msg=(f'the belt\'s crests reach {reach.min()} mm from the pulley '
+                 f'axis, not a tooth inside its flanks'))
+
     ########################################
     # The pulleys, which go nowhere and turn
 
@@ -453,7 +537,7 @@ class Metamaquina2Test(TestCase):
         for pulley, period in (
                 (self.node.x_stage.end_motor.belt_side.pulley,
                  x_belt.PERIOD),
-                (self.node.y_axis.motor.pulley, gt2.PITCH)):
+                (self.node.y_axis.motor.pulley, y_belt.PERIOD)):
             axis = int(numpy.argmin(numpy.ptp(pulley.mesh.bounds, axis=0)))
             across = [index for index in range(3) if index != axis]
 
@@ -592,8 +676,7 @@ class Metamaquina2Test(TestCase):
                 f'at x={position} the pulley cuts {volume} cubic mm out '
                 f'of the belt')
 
-            gap = trimesh.proximity.closest_point(
-                pulley.mesh, belt.mesh.vertices)[1].min()
+            gap = self.closest_to(pulley, belt)
             self.assertLessEqual(
                 gap, self.MESHED,
                 f'at x={position} the nearest the belt comes to the '
@@ -665,10 +748,11 @@ class Metamaquina2Test(TestCase):
         through the bore rather than through the metal.  A pulley off
         the axis by so much as a millimetre fails both at once.
 
-        It is not asked to turn.  The loop the design draws for this
-        axis runs on three bare bearings and never reaches the motor,
-        so these teeth are meshed with nothing and an angle for them
-        would be a claim about a drive that is not modelled.
+        This is the contract that keeps the two placements honest.  The
+        pulley is put where its belt is, in the belt's own frame, and
+        the motor where the design's chain of mounting rotations puts
+        it; nothing makes those agree except that the loop was drawn
+        around the shaft the mount really carries.
         """
         pulley = self.node.y_axis.motor.pulley
         motor = self.node.y_axis.motor.motor.motor
@@ -680,6 +764,88 @@ class Metamaquina2Test(TestCase):
         self.assertLess(
             volume, self.RIDING,
             f'the Y pulley cuts {volume} cubic mm out of its own motor')
+
+    def test_the_y_pulley_meshes_with_its_belt(self):
+        """The belt's teeth sit in the Y pulley's grooves, everywhere
+        the bed can put them.
+
+        The same pair of halves the X pulley is held to, and for the
+        same reasons -- a pulley in the next room also fails to be
+        inside anything, and parts can be a hair apart and
+        interpenetrating -- asked of a mesh the design never had.  Its
+        own loop ran three bare bearings and stopped 22 mm short of
+        this pulley; this one is bent backwards over it and wraps 156
+        degrees of it.
+
+        At eight phases of one tooth, because a mesh is tightest where
+        a tooth is halfway out of its groove.
+        """
+        belt = self.node.y_axis.belt
+        pulley = self.node.y_axis.motor.pulley
+
+        for position in self.through_one_tooth(YCarPosition, y_belt, -1):
+            self.node.set_state(y=position)
+
+            shared = trimesh.boolean.intersection([belt.mesh, pulley.mesh])
+            volume = 0.0 if shared.is_empty else shared.volume
+            self.assertLess(
+                volume, self.RIDING,
+                f'at y={position} the pulley cuts {volume} cubic mm out '
+                f'of the belt')
+
+            gap = self.closest_to(pulley, belt)
+            self.assertLessEqual(
+                gap, self.MESHED,
+                f'at y={position} the nearest the belt comes to the '
+                f'pulley is {gap} mm, so it is not meshed on it')
+
+    def test_the_y_pulley_turns_one_groove_per_belt_tooth(self):
+        """Drive the bed and the pulley turns with the teeth.
+
+        The rate first, off the shaft itself, and the sign is the
+        reverse bend's: the belt turns counterclockwise about this
+        pulley where it turns clockwise about every other circle in the
+        loop, so a bed running towards the front of the machine turns
+        it the way the X one is turned by a carriage running the other
+        way.  A rate read as a number is the only place a factor of two
+        or a reversed sign shows as itself rather than as a collision
+        somewhere else.
+
+        Then that the number reaches the metal, and that the pulley
+        goes nowhere -- a whole groove of turn reproduces its bounds
+        because it is sixteen-fold symmetric, a quarter groove moves
+        them, and what survives both is the axis they are centred on.
+        """
+        motor = self.node.y_axis.motor
+        pulley = motor.pulley
+        tooth = self.one_tooth(y_belt, -1)
+        groove = 360 / TEETH
+
+        at_rest = motor.shaft.value
+        vertices = pulley.mesh.vertices.copy()
+        bounds = pulley.mesh.bounds.copy()
+
+        self.node.set_state(y=YCarPosition + tooth)
+        self.assertAlmostEqual(
+            motor.shaft.value, at_rest + groove, delta=self.PLACED,
+            msg=('one tooth of belt should turn the pulley one groove, '
+                 f'but it turned {motor.shaft.value - at_rest} degrees'))
+        numpy.testing.assert_allclose(pulley.mesh.bounds, bounds,
+                                      atol=self.PLACED)
+
+        self.node.set_state(y=YCarPosition + tooth / 4)
+        moved = numpy.linalg.norm(pulley.mesh.vertices - vertices,
+                                  axis=1).max()
+        reach = y_belt.PULLEY_RADIUS - GT2Pulley.CLEARANCE
+        chord = 2 * reach * math.sin(math.radians(groove / 4) / 2)
+        self.assertAlmostEqual(
+            moved, chord, delta=self.PLACED,
+            msg=(f'a quarter tooth along, the furthest point of the Y pulley '
+                 f'moved {moved}, not the {chord} a quarter groove of turn '
+                 f'would move it'))
+        numpy.testing.assert_allclose(pulley.mesh.bounds.mean(axis=0),
+                                      bounds.mean(axis=0), atol=self.PLACED,
+                                      err_msg='the pulley left its own axis')
 
     def test_the_belts_travel_into_the_viewer_as_shapes(self):
         """A belt is published as its shape, not as a mesh.
@@ -752,22 +918,59 @@ class Metamaquina2Test(TestCase):
         """
         return getattr(type(self.node), driver).range
 
-    def one_tooth(self):
-        """How far the carriage travels to pull one tooth of belt
-        through its clamp."""
-        return x_belt.PERIOD / gt2.span_scale(x_belt.CIRCLES,
-                                              x_belt.CLAMP_SPAN)
+    def one_tooth(self, belt=x_belt, sense=1):
+        """How far an axis travels to pull one tooth of belt through its
+        clamp.
 
-    def through_one_tooth(self):
-        """Carriage positions covering every phase of the X mesh.
+        `sense` is which way the axis' own coordinate runs against the
+        belt's clamped span, as `assertTeethTravel` means it: the X
+        carriage and its belt agree, the bed and its belt do not.
+        """
+        return sense * belt.PERIOD / gt2.span_scale(belt.CIRCLES,
+                                                    belt.CLAMP_SPAN)
+
+    def through_one_tooth(self, rest=XCarPosition, belt=x_belt, sense=1):
+        """Axis positions covering every phase of a mesh.
 
         A tooth is where the whole engagement repeats, so `PHASES`
         points across one of them is every arrangement of teeth and
         grooves the axis can reach, and asking for more of the travel
         would only ask the same eight questions again.
         """
-        step = self.one_tooth() / self.PHASES
-        return [XCarPosition + index * step for index in range(self.PHASES)]
+        step = self.one_tooth(belt, sense) / self.PHASES
+        return [rest + index * step for index in range(self.PHASES)]
+
+    def closest_to(self, part, belt):
+        """How near `belt` comes to `part`, over the belt around it.
+
+        A minimum over a neighbourhood rather than over the whole loop,
+        for the reason `NEARBY` gives; the rest of the belt is hundreds
+        of millimetres away and cannot hold the answer.
+        """
+        axis = part.mesh.bounds.mean(axis=0)
+        vertices = belt.mesh.vertices
+        near = vertices[
+            numpy.linalg.norm(vertices - axis, axis=1) < self.NEARBY]
+        self.assertGreater(
+            len(near), 0,
+            f'no part of {belt.name} comes within {self.NEARBY} mm of '
+            f'{part.name}')
+        return trimesh.proximity.closest_point(part.mesh, near)[1].min()
+
+    def arc_rings(self, belt, element):
+        """The sampled rings of one element of a loop, as (N, 4, 3).
+
+        A molejo shape is sampled at the tessellation its document
+        declares, and a wrap spends `PATH_SAMPLES` rings on each of its
+        two-per-circle elements in order, so which rings belong to which
+        arc is a fact about the document rather than a search through
+        the mesh.  The four vertices of a ring are the section's own
+        four points in order, so column 0 is the loop's inner face and
+        column 1 its outer.
+        """
+        rings = belt.mesh.vertices.reshape(-1, 4, 3)
+        return rings[element * gt2.PATH_SAMPLES:
+                     (element + 1) * gt2.PATH_SAMPLES]
 
     def assertMovedBy(self, part, was, offset):
         """`part` now stands exactly `offset` from where `was` had it."""

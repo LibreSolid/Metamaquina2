@@ -10,7 +10,7 @@ from metamaquina2.params import (
 )
 from metamaquina2.y_axis.motor.y_motor import YMotor
 from metamaquina2.y_axis.platform.y_platform import YPlatform
-from metamaquina2.y_axis.y_belt import CLAMP_ORIGIN, YBelt
+from metamaquina2.y_axis.y_belt import CLAMP_ORIGIN, YBelt, pulley_angle
 from metamaquina2.y_axis.y_rods import YRods
 
 
@@ -27,10 +27,13 @@ class YAxis(AssemblyNode):
     own: an unconnected port has no value, and asking for one says so
     rather than drawing the bed somewhere nobody chose.
 
-    Only the platform moves.  The motor is bolted to the frame and the
-    belt loop stands where its three idlers hold it -- but the belt
-    inside that loop does follow the bed, so it takes the bed's
-    position too and re-draws itself from it rather than being placed.
+    Only the platform moves, and only the pulley turns.  The motor is
+    bolted to the frame and the belt loop stands where its three idlers
+    and that pulley hold it -- but the belt inside that loop does follow
+    the bed, so it takes the bed's position too and re-draws itself from
+    it rather than being placed, and the pulley takes it a third way, as
+    the angle that keeps a groove under every tooth coming round onto
+    it.
     """
 
     # Where the belt loop stands in the machine: centred across the
@@ -61,8 +64,8 @@ class YAxis(AssemblyNode):
         super().__init__(*args, **kwargs)
 
     def render(self):
-        """Stand the bed where the machine put it, and tell the belt
-        where it is being held.
+        """Stand the bed where the machine put it, tell the belt where
+        it is being held, and turn the pulley to meet it.
 
         The offset is the axis' own: the platform is drawn about the
         origin and the whole X/Z stage sits `XZStage_offset` off it, so
@@ -73,12 +76,16 @@ class YAxis(AssemblyNode):
         assembly turns a quarter turn to stand up: the loop's x runs
         from the rear of the machine forwards, against the machine's y,
         so the bed's coordinate is negated before the tangent point on
-        the rear idler is taken off it.
+        the rear idler is taken off it.  The pulley is told that same
+        negated coordinate, because `y_belt` measures its angle in the
+        loop's plane too.
         """
         placed = self.platform_position.value - XZStage_offset
 
         self.platform.translate([0, placed, 0])
 
         self.connect(-placed - CLAMP_ORIGIN, self.belt.clamp)
+
+        self.connect(pulley_angle(-placed), self.motor.shaft)
 
         return [self.rods, self.platform, self.belt, self.motor]
