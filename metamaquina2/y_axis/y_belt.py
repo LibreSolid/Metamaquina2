@@ -119,10 +119,27 @@ CLAMP_ORIGIN = gt2.span_origin(CIRCLES, CLAMP_SPAN)[0]
 #: Where on the pulley the belt first touches it, as an angle about the
 #: pulley's centre: the end of the span that arrives, and so the angle a
 #: tooth sitting exactly at that station would stand at.
+#:
+#: Taken in [0, 2*pi) rather than as `atan2` returns it, and that is not
+#: cosmetic.  A pulley's angle is modulo a whole turn anyway -- modulo a
+#: groove, in fact, since sixteen of them are alike -- so either number
+#: says the same thing to the geometry.  But this one is the constant
+#: the serialized expression leads with, and the viewer's expression
+#: evaluator (jokenizer 0.4.5, through `solid_node.viewers.widget`)
+#: parses subtraction right-associatively: it reads `-a + b` as
+#: `-(a + b)` and `1 - 2 - 3` as 2.  A negative lead constant therefore
+#: negates the whole angle in the browser, which flips the *rate* along
+#: with it -- the pulley spins backwards there while every Python test
+#: passes, because Python's arithmetic is not jokenizer's.  Keeping the
+#: constant positive keeps the expression out of the one shape that
+#: parser gets wrong.  The defect is the framework's and wants fixing
+#: there; this only keeps this machine out of its way, and is written
+#: down so nobody tidies it back.
 _ARRIVAL = gt2.spans(CIRCLES)[1]
 _TOUCH = (_ARRIVAL[0][0] + _ARRIVAL[1][0] * _ARRIVAL[2],
           _ARRIVAL[0][1] + _ARRIVAL[1][1] * _ARRIVAL[2])
-PULLEY_PHASE = math.atan2(_TOUCH[1] - PULLEY[1], _TOUCH[0] - PULLEY[0])
+PULLEY_PHASE = math.atan2(_TOUCH[1] - PULLEY[1],
+                          _TOUCH[0] - PULLEY[0]) % (2 * math.pi)
 
 
 def pulley_angle(position):
