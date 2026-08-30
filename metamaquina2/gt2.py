@@ -1,4 +1,4 @@
-"""The GT2 timing belt both driven axes run.
+"""The GT2 timing belt both driven axes run, and the pulley it meshes on.
 
 The OpenSCAD design draws a belt as a 2 mm thick ring hulled around the
 things it wraps.  That is enough to see where the loop goes, and all a
@@ -9,11 +9,13 @@ the teeth travel with it, through a loop that itself stands still.  That
 is a shape to be re-drawn at every position rather than a solid to be
 moved, which is what a flexible leaf is for.
 
-This module holds the one thing the two belts share: what a GT2 belt
-*is*.  The numbers here are the belt standard's, because the design has
-none -- it never drew a tooth.  The design's own numbers stay in
-`params` and arrive as arguments: which circles a belt runs, and how
-wide it is.
+This module holds what the two belts share, and what the pulley one of
+them meshes on shares with it: what GT2 *is*.  The numbers here are the
+belt standard's, because the design has none -- it never drew a tooth,
+and its `GT2_pulley` module is an empty stub with a bill-of-materials
+line and a `//TODO: implement-me!` inside it.  The design's own numbers
+stay in `params` and arrive as arguments: which circles a belt runs,
+how wide it is, and which radius it was drawn around.
 
 molejo authors a belt as a `Wrap`: an ordered list of circles in the XY
 plane, run along their external tangents, clockwise seen from +Z, with
@@ -33,8 +35,12 @@ line*.  Three consequences shape everything below.
   axis.  Converting between the two needs to know where the span starts
   and how it is tilted.  molejo computes both internally and publishes
   neither, so `span_origin` and `span_scale` below restate its
-  external-tangent rule.  That restatement is the one piece of this
-  module that would rather live in molejo.
+  external-tangent rule.
+* The tooth form is likewise molejo's, published only as the displaced
+  mesh it draws, and a pulley the belt meshes on has to be that form's
+  exact negative -- so `modulation` restates it too.  Those two
+  restatements are the pieces of this module that would rather live in
+  molejo.
 
 Why the belts were done now
 ---------------------------
@@ -72,10 +78,55 @@ What it cost, and what it found:
   elements per circle, so the 19 mm of arc at the end of the X beam is
   sampled as finely as the 375 mm run that carries 190 teeth.  See
   `PATH_SAMPLES`.
+
+And what the pulley then found
+------------------------------
+
+The X belt is drawn meshed on a pulley, so the pulley had to become a
+part rather than a radius, and asking which pulley it is turned up
+three more things the stub had hidden.
+
+* `PulleyRadius` is 6, and 6 is not a GT2 pulley.  A belt meshed on it
+  wraps a pitch circle of 6.254, which carries 19.66 teeth -- and a
+  pulley has a whole number of them or it does not mesh.  The whole
+  number nearest what the design drew is 20, whose flanks stand at
+  6.111, so the belt is drawn 0.111 mm further out at the motor end
+  than the round number said.  See `pulley_teeth`, and
+  `x_stage.x_belt.PULLEY_RADIUS` for the loop that closes on it.
+* Both pulleys are placed somewhere their belt is not.  The X one is
+  put one `thickness` off the plate it hangs behind, 6 mm out of the
+  plane its own belt runs in; the Y one is left at the origin of the
+  motor's assembly, 72 mm off the shaft.  Nothing showed while
+  `GT2_pulley` drew nothing.  Both are placed from the belt instead;
+  see `x_stage.ends.motor.belt_side` and `y_axis.motor.y_motor`.
+* A trapezoidal tooth cannot get out of a trapezoidal groove, so a
+  pulley drawn as the exact negative of its belt bites it at the two
+  places where a tooth is halfway through.  A groove is the shape of
+  everything a tooth does on its way in and out, which is `groove`,
+  and which is what the curved grooves of a real timing pulley are.
+
+Everything left after that is microns, and it is not chased.  Two
+surfaces meeting exactly is a precision neither a moulded belt nor a
+machined pulley has, and one a mesh boolean cannot even be asked about,
+so the pulley is cut a tenth of a millimetre inside the belt all round
+-- about the backlash such a pair really runs with, and well inside
+what the rubber takes up by flexing.  See
+`hardware.gt2_pulley.GT2Pulley.CLEARANCE`.
+
+The one micron that is chased is the pulley's own pitch, which is cut
+to the belt's rather than to the standard's.  Not for clearance, which
+would swallow it, but because a tooth of belt is one groove of pulley
+only when the two circles are the same circle, and a drive ratio ought
+not to have a number in it that nothing chose.
+
+The Y motor gets the same part and no mesh: the loop the design draws
+runs on three bare bearings and never reaches the motor, so there is
+nothing for those teeth to engage and nothing to derive an angle from.
 """
 
 import math
 
+import numpy
 from molejo import Polygon, Teeth
 from solid_node.node import MolejoNode
 
@@ -157,6 +208,148 @@ def on_idler(centre, radius):
     """
     return {'center': [centre[0], centre[1]],
             'radius': radius + TOOTH_HEIGHT + PITCH_LINE}
+
+
+def pulley_teeth(radius):
+    """How many teeth a pulley whose flanks stand at `radius` carries.
+
+    `tooth_count` read the other way, for a circle instead of a loop: a
+    pulley's flank circle is one pitch line differential inside the
+    pitch circle the belt runs on, and that circle carries a whole
+    number of nominal pitches.  A design that writes a pulley down as a
+    radius rather than as a tooth count -- as this one does, in
+    `PulleyRadius` -- has named it by the wrong number, and this is
+    which pulley it named.
+    """
+    return round(2 * math.pi * (radius + PITCH_LINE) / PITCH)
+
+
+def pulley_radius(teeth, period=PITCH):
+    """Where the flanks of a pulley of `teeth` teeth stand.
+
+    `period` is the pitch its grooves are really spaced at, which for a
+    pulley meshed with a drawn loop is the loop's own `pitch` and not
+    the nominal `PITCH` a catalogue pulley is cut at: molejo divides a
+    loop's length by a whole tooth count rather than stepping 2 mm
+    around it, so a drawn loop comes out a fortieth of a percent off
+    the standard.  On the machine that difference is taken up in belt
+    tension.  In a drawing there is no tension to take it up with, so
+    the pulley is cut to the belt it drives instead.
+    """
+    return teeth * period / (2 * math.pi) - PITCH_LINE
+
+
+def modulation(fraction):
+    """How much tooth stands at `fraction` of the way through one
+    period: nought on the land between two teeth, one at a crest.
+
+    molejo's own tooth form, restated -- a quarter crest centred on the
+    pattern origin, a quarter ramp, a quarter root and a quarter ramp
+    back.  molejo publishes it only as the mesh it displaces, and a
+    pulley the belt meshes on is exactly this curve read as a solid's
+    boundary rather than as an offset, so the two cannot be allowed to
+    disagree.
+    """
+    fraction %= 1.0
+    away = min(fraction, 1.0 - fraction)
+    return max(0.0, min(1.0, (0.375 - away) * 4.0))
+
+
+#: How finely a tooth's way out of its groove is followed.
+#:
+#: The sampling is square: this many stations across one tooth, and
+#: this many advances for each of them, so a millionth of a tooth's
+#: passage is looked at.  It is deliberately far finer than the outline
+#: it feeds, which takes the deepest of a whole step at a time -- a
+#: missed sample can only ever leave a groove tighter than it should be,
+#: and the step is where that is made safe rather than here.
+PASSAGE_SAMPLES = 1024
+
+#: How far past the pitch circle a tooth is followed, in teeth.
+#:
+#: A crest sits 1.004 mm inside the pitch line, so it has cleared the
+#: flank circle once it is 2.93 mm along the straight run -- a tooth and
+#: a half.  Three is that with room, and the sampling stops early
+#: anyway: `_passage` drops every station the moment its tooth is out.
+PASSAGE_REACH = 3
+
+
+def _passage(teeth, period, bins):
+    """The deepest a tooth reaches into a pulley, by angle, on its way
+    out of the groove it was seated in.
+
+    A belt leaves a pulley along a tangent, so in the pulley's own frame
+    a tooth on the way out is a tooth on a straight line rolling off a
+    circle: it lifts out of its groove while the pulley turns under it,
+    and it sweeps.  Everything here follows from that one picture.  A
+    tooth seated at station `m` sits at pulley angle `m / pitch radius`
+    and stays there; once it is `run` past the tangent point it stands
+    at `hypot(seat, run)` from the centre, at an angle the pulley's own
+    turn has carried a further `run / pitch radius` on and the tangent
+    has swung `atan2(run, seat)` back.
+
+    A groove is cut once and every tooth goes through it, so the answer
+    is the deepest reach at each angle over the whole passage.  Coming
+    on is going off with time reversed, which is a reflection, so the
+    two halves are folded together at the end rather than derived
+    twice.
+    """
+    pitch_radius = teeth * period / (2 * math.pi)
+    flank = pitch_radius - PITCH_LINE
+
+    station = numpy.linspace(0.0, period, PASSAGE_SAMPLES, endpoint=False)
+    seat = pitch_radius - numpy.array(
+        [PITCH_LINE + TOOTH_HEIGHT * modulation(place / period)
+         for place in station])
+    run = numpy.linspace(0.0, PASSAGE_REACH * period, PASSAGE_SAMPLES)[1:]
+
+    radius = numpy.hypot(seat[:, None], run[None, :])
+    angle = (station[:, None] / pitch_radius
+             + run[None, :] / pitch_radius
+             - numpy.arctan2(run[None, :], seat[:, None]))
+
+    biting = radius < flank
+    tooth = 2 * math.pi / teeth
+    index = ((angle % tooth) / tooth * bins).astype(int) % bins
+
+    deepest = numpy.zeros(bins)
+    numpy.maximum.at(deepest, index[biting], (flank - radius)[biting])
+    return numpy.maximum(deepest, deepest[(-numpy.arange(bins)) % bins])
+
+
+def groove(teeth, period, steps, fine=16):
+    """How deep a pulley's groove is at each of `steps` points through
+    one tooth.
+
+    Not the tooth's own shape.  A tooth is a trapezoid and a trapezoid
+    cannot get out of a trapezoid: seat one exactly and it is trapped,
+    because leaving means swinging about the tangent point and the
+    corners have nowhere to swing to.  Drawn as the exact negative the
+    pulley bites its own belt at the two places where a tooth is
+    halfway in or halfway out -- two tenths of a cubic millimetre of
+    it, at the two ends of the wrap and nowhere else, which is what
+    sent this function looking.  So a groove is not the shape of a
+    tooth; it is the shape of everything the tooth does on its way
+    through, and the floor and the flat between two grooves come out
+    untouched while the flanks are scooped back by up to 0.17 mm.
+    That is what a real timing pulley's curved grooves are for.
+
+    Each returned point is the deepest reach anywhere within one step
+    either side of it, because a chord of the polygon this feeds stands
+    as far out as its outer end: a tooth passing between two points has
+    to clear both of them.  The over-cut that follows is flank
+    clearance, which is a thing a pulley has and a drawing usually
+    forgets, and it leaves the two surfaces that actually carry -- the
+    groove floor and the land between grooves -- exactly where they
+    were.
+    """
+    bins = steps * fine
+    needed = numpy.maximum(
+        _passage(teeth, period, bins),
+        [TOOTH_HEIGHT * modulation(index / bins) for index in range(bins)])
+    return [max(needed[(step * fine + offset) % bins]
+                for offset in range(-fine, fine + 1))
+            for step in range(steps)]
 
 
 def tooth_count(circles):

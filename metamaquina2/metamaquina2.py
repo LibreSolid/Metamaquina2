@@ -24,11 +24,13 @@ the machine that has always been drawn, and it can now be sent
 somewhere else without editing anything.
 
 What moves is what carries the print: the carriage along the X beam,
-the bed along its rods, the whole X beam up and down the Z rods.  The
-motors and the Z screws stand still while the things they pull travel,
-which is a deliberate stopping point rather than an oversight -- a
-screw that turns needs a rotation the design has no angle for, and
-nothing about where the machine is depends on it.
+the bed along its rods, the whole X beam up and down the Z rods.  One
+thing turns with them, and only one: the pulley the X belt is meshed
+on, because a groove has to stay under every tooth that comes round to
+it and the belt says exactly where.  The Z screws and the other two
+motors stand still, which is a stopping point rather than an oversight
+-- a screw that turns needs a rotation nothing in the design pins
+down, and nothing about where the machine is depends on it.
 
 The two belts used to stand still for a different and worse reason.  A
 belt does not go anywhere: both ends of each loop are bolted down, and
@@ -38,8 +40,11 @@ it by the carriage clamped to it, so a belt is a shape to be re-drawn
 at every position rather than a part to be re-placed, and the design's
 2 mm ring hulled around a few circles has nowhere to put a tooth.  Both
 belts are now what they are on the machine: GT2, toothed, clamped to
-the thing they pull, drawn afresh from wherever that thing is.  What a
-GT2 belt is lives in `gt2.py`; the loops themselves are in
+the thing they pull, drawn afresh from wherever that thing is.  Both
+motors that drive one have the pulley the design's own bill of
+materials buys and its module never drew, and the X one is meshed:
+what a GT2 belt and its pulley are lives in `gt2.py`, the part is in
+`hardware/gt2_pulley.py`, and the loops themselves are in
 `x_stage/x_belt.py` and `y_axis/y_belt.py`.
 
 Where the geometry comes from is in `scad.py`, where the dimensions

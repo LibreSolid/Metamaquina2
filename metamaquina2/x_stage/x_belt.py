@@ -1,12 +1,14 @@
-"""The X axis belt."""
+"""The X axis belt, and the phase of the pulley it meshes on."""
+
+import math
 
 from molejo import P, Shape, Wrap
 from solid_node.node import TranslationalPort
 
 from metamaquina2 import gt2
+from metamaquina2.hardware.gt2_pulley import TEETH
 from metamaquina2.params import (
     IdlerRadius,
-    PulleyRadius,
     XEnd_box_size,
     XIdler_height,
     XMotor_height,
@@ -21,6 +23,58 @@ from metamaquina2.params import (
 PULLEY = [-machine_x_dim / 2 + thickness + XEnd_box_size / 2, XMotor_height]
 IDLER = [machine_x_dim / 2 - thickness - XEnd_box_size / 2, XIdler_height]
 
+#: How far a radius may still move before the loop is called closed.
+#:
+#: A picometre.  The iteration below converges by about four decimal
+#: places a turn, so this is reached in six of them and is a statement
+#: that the loop has stopped moving rather than a tolerance anything is
+#: allowed within.
+CLOSED = 1e-12
+
+
+def _meshed_radius():
+    """Where the motor pulley's flanks stand, for a belt whose teeth are
+    spaced exactly as its grooves are.
+
+    The two ends of that sentence chase each other.  A pulley of a given
+    tooth count has a radius only once its grooves have a pitch; molejo
+    draws a loop's teeth at the loop's length over a whole tooth count,
+    so that pitch is not known until the loop is drawn; and the loop is
+    not drawn until the pulley it wraps has a radius.  So the circle is
+    closed by iteration from the nominal pitch, a quarter of a micron
+    from where it lands.
+
+    What it buys is not clearance -- the pulley has its own, and would
+    swallow this either way -- but a ratio.  Only when the belt's pitch
+    circle and the pulley's are the same circle is a tooth of belt
+    exactly one groove of pulley: drawn at the nominal 2 mm instead, a
+    tooth turns the motor 17.996 degrees rather than 18, and a drive
+    that is a fortieth of a percent out is a drive with a number in it
+    that nothing chose.
+    """
+    radius = gt2.pulley_radius(TEETH)
+    while True:
+        circles = [gt2.on_pulley(PULLEY, radius),
+                   gt2.on_idler(IDLER, IdlerRadius)]
+        closer = gt2.pulley_radius(TEETH, gt2.pitch(circles))
+        if abs(closer - radius) < CLOSED:
+            return closer
+        radius = closer
+
+
+#: Where the pulley's flanks really stand: 6.111, not the 6 the design
+#: writes down.
+#:
+#: `PulleyRadius` is a round number, and a round number is not a pulley.
+#: The belt was drawn around it while there was no pulley to disagree --
+#: the design's module draws nothing -- and 6 asks for 19.66 teeth,
+#: which is not something anybody cuts.  So the radius is derived from
+#: the tooth count nearest it, exactly as the Y belt's height is derived
+#: from the bars it runs on rather than read off the literal the design
+#: writes beside them.  The idler end keeps the design's own radius,
+#: because a 608 bearing really is 11 mm and has nothing to mesh.
+PULLEY_RADIUS = _meshed_radius()
+
 #: The pitch circles, ordered clockwise seen from +Z, which is the order
 #: molejo runs a wrap in: motor at the left, idler at the right, so the
 #: first tangent span is the upper run travelling towards the idler.
@@ -33,9 +87,20 @@ IDLER = [machine_x_dim / 2 - thickness - XEnd_box_size / 2, XIdler_height]
 #: two heights are set so those surfaces line up; a real belt's pitch
 #: line does not, and the upper run comes out very slightly tilted.
 CIRCLES = [
-    gt2.on_pulley(PULLEY, PulleyRadius),
+    gt2.on_pulley(PULLEY, PULLEY_RADIUS),
     gt2.on_idler(IDLER, IdlerRadius),
 ]
+
+#: The pitch the loop's teeth come out at, and so the pitch the pulley
+#: is cut at.
+#:
+#: Not quite the standard's 2 mm: molejo divides the loop by a whole
+#: tooth count rather than stepping the nominal pitch around it, so a
+#: loop this size comes out a fortieth of a percent short.  A real
+#: pulley is cut at the nominal pitch and the machine takes the
+#: difference up in belt tension; a drawing has no tension to take it
+#: up with, so the pulley is cut to its own belt instead.
+PERIOD = gt2.pitch(CIRCLES)
 
 #: The upper run, the one the carriage's two clamps grip between them.
 CLAMP_SPAN = 0
@@ -44,6 +109,43 @@ CLAMP_SPAN = 0
 #: motor pulley -- which is what a carriage position is measured from to
 #: reach the anchor.
 CLAMP_ORIGIN = gt2.span_origin(CIRCLES, CLAMP_SPAN)[0]
+
+#: Where on the pulley the belt leaves it, as an angle about the pulley's
+#: centre: the tangent point the loop's own arc lengths are measured
+#: from, and so the angle a tooth clamped at nought would stand at.
+PULLEY_PHASE = math.atan2(
+    gt2.span_origin(CIRCLES, CLAMP_SPAN)[1] - PULLEY[1],
+    gt2.span_origin(CIRCLES, CLAMP_SPAN)[0] - PULLEY[0])
+
+
+def pulley_angle(position):
+    """Which way the motor pulley faces with the carriage at `position`.
+
+    The pulley is not driven by the carriage on the machine -- it is
+    the other way round, and the belt is what joins them -- but the
+    belt is drawn from the carriage, so the angle that keeps a groove
+    under every tooth is read from the carriage too.
+
+    Two conversions and a division.  A carriage position becomes a
+    length of belt the way `XBelt.clamp` does it, from the start of the
+    clamped run and through that run's own tilt; that length becomes an
+    angle at the pulley's pitch radius, subtracted because the loop
+    runs clockwise, so a carriage moving along +X pays belt off the top
+    of the pulley and turns it the same way; and the tangent point is
+    where an anchor of nought puts a tooth.
+
+    The loop's own length drops out of it.  It is a whole number of
+    teeth by construction, so it is a whole number of the pulley's
+    grooves too, and the pulley cannot tell one from another.
+
+    Written as arithmetic rather than through `math.degrees`, because
+    `position` is not always a number: the serialization pass drives
+    the tree symbolically, and what comes through then is an expression
+    in the machine's own `x` for the viewer to turn the pulley by.
+    """
+    anchor = (position - CLAMP_ORIGIN) * gt2.span_scale(CIRCLES, CLAMP_SPAN)
+    turn = PULLEY_PHASE - anchor / (PULLEY_RADIUS + gt2.PITCH_LINE)
+    return turn * 180 / math.pi
 
 
 class XBelt(gt2.Belt):

@@ -1,6 +1,6 @@
 """The motor-side X end."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, RotationalPort
 
 from metamaquina2.frame.tslot_bolt import TSlotBolt
 from metamaquina2.hardware.lm8uu import LM8UU
@@ -29,9 +29,17 @@ class XEndMotor(AssemblyNode):
     """The box at the left of the X beam.
 
     Five plates bolted into a box, two Z bearings clamped inside it by
-    the sandwich, a Z link on the outside, and the X motor on the belt
-    side.  The whole thing sits at the far left of the machine.
+    the sandwich, a Z link on the outside, and the X motor and its
+    pulley on the belt side.  The whole thing sits at the far left of
+    the machine.
+
+    `shaft` passes straight through to the belt side, which is where
+    the pulley is.  The box has nothing to say about the angle -- it is
+    a fact about the belt, which the beam above owns -- so it relays it
+    rather than deriving anything from it.
     """
+
+    shaft = RotationalPort(unit='deg')
 
     def __init__(self, *args, **kwargs):
         def on_machine(node):
@@ -94,6 +102,8 @@ class XEndMotor(AssemblyNode):
         super().__init__(*args, **kwargs)
 
     def render(self):
+        self.connect(self.shaft, self.belt_side.shaft)
+
         return ([self.back_plate] + self.back_joints
                 + [self.bearing_sandwich, self.front_plate,
                    self.plain_plate, self.belt_side, self.zlink]

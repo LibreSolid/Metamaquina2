@@ -47,6 +47,8 @@ and asserting them would only produce a red suite nobody could act on.
 Making them true is a change to the OpenSCAD design.
 """
 
+import math
+
 import numpy
 import trimesh
 
@@ -59,6 +61,7 @@ from solid_node.simulation import Sim
 from solid_node.test import TestCase
 
 from metamaquina2 import gt2
+from metamaquina2.hardware.gt2_pulley import TEETH, GT2Pulley
 from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
@@ -97,6 +100,29 @@ class Metamaquina2Test(TestCase):
     # four below the tens of cubic millimetres a belt drawn a
     # millimetre low cuts out of an outer race.
     RIDING = 0.001
+
+    # A pulley is cut its own `CLEARANCE` inside the surface its belt
+    # runs on, so the two are never in contact and the belt's nearest
+    # point to it is that far off.  A little under, in fact -- the belt
+    # is sampled at rings and its nearest vertex is not always on the
+    # flank -- so this is an upper bound on a gap that must exist and
+    # must be small: a pulley that has drifted out of the loop
+    # altogether is millimetres away, not hundredths.
+    MESHED = GT2Pulley.CLEARANCE
+
+    # A GT2 pulley of this machine reaches 6.01 mm from its axis on a
+    # 5 mm shaft, so every point of it is within 3.6 mm of the shaft's
+    # own surface.  Four separates that from a pulley knocked off the
+    # shaft by even a couple of millimetres, and does it without
+    # depending on how a cylinder tessellates.
+    ON_THE_SHAFT = 4
+
+    # Positions spent crossing one tooth, for a contract that has to
+    # hold at every phase of the mesh rather than at the rest pose.
+    # Eight puts a groove floor, a flank and a land at the tangent
+    # point in turn, which is where a tooth is halfway out and the
+    # geometry is at its tightest.
+    PHASES = 8
 
     def setUp(self):
         """Start every test from the rest pose.
@@ -388,6 +414,156 @@ class Metamaquina2Test(TestCase):
                       bars.rear.lower_idler):
             self.assertRidesOn(self.node.y_axis.belt, idler.bearing)
 
+    ########################################
+    # The pulleys, which go nowhere and turn
+
+    def test_each_motor_pulley_stands_in_its_belts_plane(self):
+        """A pulley is across the belt it drives, not beside it.
+
+        The design gets both of these wrong, and could not have seen
+        either: its `GT2_pulley` module draws nothing, so the X one is
+        placed one `thickness` off the plate it hangs behind -- 6 mm
+        out of the plane its own belt runs in -- and the Y one is left
+        at the origin of the motor's assembly, 72 mm off the shaft.
+        Both are placed from their belt here instead, so both are asked
+        the question the design was never in a position to fail.
+
+        Each pulley is exactly as wide as its belt, so this is an
+        equality and not a containment: the two have to start and stop
+        together along the axis the pulley turns about.
+        """
+        for pulley, belt, axis in (
+                (self.node.x_stage.end_motor.belt_side.pulley,
+                 self.node.x_stage.belt, 1),
+                (self.node.y_axis.motor.pulley,
+                 self.node.y_axis.belt, 0)):
+            numpy.testing.assert_allclose(
+                pulley.mesh.bounds[:, axis], belt.mesh.bounds[:, axis],
+                atol=self.PLACED,
+                err_msg=(f'{pulley.name} does not stand in the plane '
+                         f'{belt.name} runs in'))
+
+    def test_the_x_pulley_meshes_with_its_belt(self):
+        """The belt's teeth sit in the pulley's grooves, everywhere the
+        carriage can put them.
+
+        Two halves, and neither is worth much alone.  The pulley must
+        not be inside the belt -- a tooth through a tooth is the way a
+        phase, a tooth count or a pitch goes wrong, and it is worth
+        nothing on its own because a pulley in the next room also fails
+        to be inside anything.  And the belt must be within a hair of
+        it, which is what says the two are actually nested; that is
+        worth nothing on its own either, because parts can be a hair
+        apart and interpenetrating.
+
+        Asked at eight phases of one tooth rather than at the rest
+        pose, because a mesh is tightest when a tooth is halfway out of
+        its groove and where that happens depends on where in a tooth
+        the carriage stands.  A single position would answer for one
+        phase and say nothing about the other seven.
+        """
+        belt = self.node.x_stage.belt
+        pulley = self.node.x_stage.end_motor.belt_side.pulley
+
+        for position in self.through_one_tooth():
+            self.node.set_state(x=position)
+
+            shared = trimesh.boolean.intersection([belt.mesh, pulley.mesh])
+            volume = 0.0 if shared.is_empty else shared.volume
+            self.assertLess(
+                volume, self.RIDING,
+                f'at x={position} the pulley cuts {volume} cubic mm out '
+                f'of the belt')
+
+            gap = trimesh.proximity.closest_point(
+                pulley.mesh, belt.mesh.vertices)[1].min()
+            self.assertLessEqual(
+                gap, self.MESHED,
+                f'at x={position} the nearest the belt comes to the '
+                f'pulley is {gap} mm, so it is not meshed on it')
+
+    def test_the_x_pulley_turns_one_groove_per_belt_tooth(self):
+        """Drive the carriage and the pulley turns with the teeth.
+
+        The rate first, off the shaft itself: a tooth of belt through
+        the clamp is one groove of pulley, and the sign is the loop's
+        -- the run the carriage is clamped to leaves the top of the
+        pulley, so a carriage going along +X turns it the way a clock
+        goes.  A rate read as a number is the only place a factor of
+        two or a reversed sign shows as itself rather than as a
+        collision somewhere else.
+
+        Then that the number reaches the metal, which the rate alone
+        cannot say.  A quarter tooth turns the pulley a quarter groove,
+        and a rotation moves its furthest point by exactly the chord of
+        that angle at the radius the point stands at -- so this is a
+        turn of a stated size about the stated axis, and not a nudge,
+        a wobble, or a pulley swung around the corner of the plate it
+        is bolted near.
+
+        And a pulley goes nowhere, which the two turns have to be
+        asked differently because a pulley is only twenty-fold
+        symmetric.  A whole groove of turn puts every tooth where the
+        one before it stood, so the bounds come back exactly; a quarter
+        groove moves them, and what stays is the axis they are centred
+        on.
+        """
+        belt_side = self.node.x_stage.end_motor.belt_side
+        pulley = belt_side.pulley
+        tooth = self.one_tooth()
+        groove = 360 / TEETH
+
+        at_rest = belt_side.shaft.value
+        vertices = pulley.mesh.vertices.copy()
+        bounds = pulley.mesh.bounds.copy()
+
+        self.node.set_state(x=XCarPosition + tooth)
+        self.assertAlmostEqual(
+            belt_side.shaft.value, at_rest - groove, delta=self.PLACED,
+            msg=('one tooth of belt should turn the pulley one groove, '
+                 f'but it turned {belt_side.shaft.value - at_rest} degrees'))
+        numpy.testing.assert_allclose(pulley.mesh.bounds, bounds,
+                                      atol=self.PLACED)
+
+        self.node.set_state(x=XCarPosition + tooth / 4)
+        moved = numpy.linalg.norm(pulley.mesh.vertices - vertices,
+                                  axis=1).max()
+        reach = x_belt.PULLEY_RADIUS - GT2Pulley.CLEARANCE
+        chord = 2 * reach * math.sin(math.radians(groove / 4) / 2)
+        self.assertAlmostEqual(
+            moved, chord, delta=self.PLACED,
+            msg=(f'a quarter tooth along, the furthest point of the pulley '
+                 f'moved {moved}, not the {chord} a quarter groove of turn '
+                 f'would move it'))
+        numpy.testing.assert_allclose(pulley.mesh.bounds.mean(axis=0),
+                                      bounds.mean(axis=0), atol=self.PLACED,
+                                      err_msg='the pulley left its own axis')
+
+    def test_the_y_pulley_sits_on_its_motor_shaft(self):
+        """The Y pulley is on the shaft, bored onto it.
+
+        Every point of it near the motor and no point of it inside:
+        the first is what says the pulley is on the shaft rather than
+        hanging in air beside it, and the second that the shaft goes
+        through the bore rather than through the metal.  A pulley off
+        the axis by so much as a millimetre fails both at once.
+
+        It is not asked to turn.  The loop the design draws for this
+        axis runs on three bare bearings and never reaches the motor,
+        so these teeth are meshed with nothing and an angle for them
+        would be a claim about a drive that is not modelled.
+        """
+        pulley = self.node.y_axis.motor.pulley
+        motor = self.node.y_axis.motor.motor.motor
+
+        self.assertClose(motor, pulley, self.ON_THE_SHAFT)
+
+        shared = trimesh.boolean.intersection([motor.mesh, pulley.mesh])
+        volume = 0.0 if shared.is_empty else shared.volume
+        self.assertLess(
+            volume, self.RIDING,
+            f'the Y pulley cuts {volume} cubic mm out of its own motor')
+
     def test_the_belts_travel_into_the_viewer_as_shapes(self):
         """A belt is published as its shape, not as a mesh.
 
@@ -458,6 +634,23 @@ class Metamaquina2Test(TestCase):
         narrowing what the machine claims narrows what is asked of it.
         """
         return getattr(type(self.node), driver).range
+
+    def one_tooth(self):
+        """How far the carriage travels to pull one tooth of belt
+        through its clamp."""
+        return x_belt.PERIOD / gt2.span_scale(x_belt.CIRCLES,
+                                              x_belt.CLAMP_SPAN)
+
+    def through_one_tooth(self):
+        """Carriage positions covering every phase of the X mesh.
+
+        A tooth is where the whole engagement repeats, so `PHASES`
+        points across one of them is every arrangement of teeth and
+        grooves the axis can reach, and asking for more of the travel
+        would only ask the same eight questions again.
+        """
+        step = self.one_tooth() / self.PHASES
+        return [XCarPosition + index * step for index in range(self.PHASES)]
 
     def assertMovedBy(self, part, was, offset):
         """`part` now stands exactly `offset` from where `was` had it."""
