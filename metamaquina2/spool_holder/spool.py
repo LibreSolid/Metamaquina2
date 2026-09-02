@@ -1,5 +1,7 @@
 """A reel of filament."""
 
+from solid_node.node import Length
+
 from metamaquina2 import materials
 from metamaquina2.params import (
     filament_diameter,
@@ -28,12 +30,16 @@ class FilamentSpool(ScadPart):
     color = materials.ABS
 
     #: What the design draws, from the bare numbers in `FilamentSpool()`.
-    outer_diameter = spool_diameter
-    bore_diameter = spool_bore
-    width = spool_width
+    outer_diameter = Length(spool_diameter, min=0)
+    bore_diameter = Length(spool_bore, min=0)
+    width = Length(spool_width, min=0)
+
+    #: The stock wound on it, which is what the outermost layer is made
+    #: of and so how much of the reel's diameter the tube gives up.
+    stock_diameter = Length(filament_diameter, min=0)
 
     #: What is left for the tube once the outermost layer is drawn.
-    wound_diameter = outer_diameter - 2 * filament_diameter
+    wound_diameter = outer_diameter - 2 * stock_diameter
 
     def render(self):
         section = (curve('circle', r=self.wound_diameter / 2)

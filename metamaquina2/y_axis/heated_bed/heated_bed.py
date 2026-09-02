@@ -20,11 +20,9 @@ class HeatedBed(AssemblyNode):
     the board, not a part.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.pcb = HeatedBedPcb()
-        self.glass = HeatedBedGlass().translate(
-            [-glass_w / 2, -glass_h / 2, heated_bed_pcb_thickness])
-        super().__init__(*args, **kwargs)
+    pcb = HeatedBedPcb()
+    glass = HeatedBedGlass()
 
     def render(self):
-        return [self.pcb, self.glass]
+        self.glass.translate(
+            [-glass_w / 2, -glass_h / 2, heated_bed_pcb_thickness])

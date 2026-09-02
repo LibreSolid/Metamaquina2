@@ -60,7 +60,7 @@ SPRING_SEAT = POSITION[0] - Idler.back_face
 #: design states no setting, so the spring is drawn at the loosest one
 #: the drawing allows, which is the one the design itself draws.
 SLACK = (handle_bolt_length - handle_nut_height - SPRING_SEAT
-         - m4_washer_thickness - IdlerSpring.free_length)
+         - m4_washer_thickness - IdlerSpring.FREE_LENGTH)
 
 
 class Handle(AssemblyNode):

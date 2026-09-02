@@ -39,32 +39,16 @@ class BedLevelScrew(AssemblyNode):
     #: What the bill of materials buys to hold each corner.
     bolt_length = 30
 
-    def __init__(self, *args, **kwargs):
-        spring = BedSpring()
-        self.spring = spring.translate(
-            [spring.coil_radius, 0, spring.wire_diameter / 2])
-
-        # Under the board, spreading the spring's end coil over the
-        # copper rather than letting it press into it.
-        self.seat_washer = M3Washer().translate([0, 0, INSTALLED])
-
-        # On top of the board, under the head. The corner holes are at
-        # y = +/-107 and the glass reaches only +/-100, so the head sits
-        # on bare board and the glass comes off past it.
-        head_seat = SEAT + heated_bed_pcb_thickness
-        self.head_washer = M3Washer().translate([0, 0, head_seat])
-        self.bolt = Bolt(diameter=3, length=self.bolt_length).translate(
-            [0, 0, head_seat + m3_washer_thickness])
-
-        # Under the platform sheet, and the nut under that.
-        nut_seat = -thickness - m3_washer_thickness
-        self.nut_washer = M3Washer().translate([0, 0, nut_seat])
-        self.nut = M3Nut().translate([0, 0, nut_seat - m3_nut_height])
-
-        super().__init__(*args, **kwargs)
+    spring = BedSpring()
+    seat_washer = M3Washer()
+    head_washer = M3Washer()
+    bolt = Bolt(diameter=3, length=bolt_length)
+    nut_washer = M3Washer()
+    nut = M3Nut()
 
     def render(self):
-        """Tell the spring how much room it has been left.
+        """Stand the stack, and tell the spring how much room it has
+        been left.
 
         A constant today, and deliberately: the length is derived from
         where this package puts the board and the platform, so turning
@@ -74,7 +58,23 @@ class BedLevelScrew(AssemblyNode):
         its parts.  The port is here so that when it is made, it is a
         wire and not a redrawing.
         """
-        self.connect(self.spring.rise, self.spring.height)
+        self.spring.translate(
+            [self.spring.coil_radius, 0, self.spring.wire_diameter / 2])
 
-        return [self.spring, self.seat_washer, self.head_washer, self.bolt,
-                self.nut_washer, self.nut]
+        # Under the board, spreading the spring's end coil over the
+        # copper rather than letting it press into it.
+        self.seat_washer.translate([0, 0, INSTALLED])
+
+        # On top of the board, under the head. The corner holes are at
+        # y = +/-107 and the glass reaches only +/-100, so the head sits
+        # on bare board and the glass comes off past it.
+        head_seat = SEAT + heated_bed_pcb_thickness
+        self.head_washer.translate([0, 0, head_seat])
+        self.bolt.translate([0, 0, head_seat + m3_washer_thickness])
+
+        # Under the platform sheet, and the nut under that.
+        nut_seat = -thickness - m3_washer_thickness
+        self.nut_washer.translate([0, 0, nut_seat])
+        self.nut.translate([0, 0, nut_seat - m3_nut_height])
+
+        self.connect(self.spring.rise, self.spring.height)

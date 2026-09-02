@@ -42,14 +42,13 @@ class ZBars(AssemblyNode):
 
     angle = RotationalPort(unit='deg')
 
-    def __init__(self, *args, **kwargs):
-        self.offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
-                       - z_rod_z_bar_distance)
-        self.bars = [ThreadedRod(length=Z_bar_length) for _ in (-1, 1)]
-        super().__init__(*args, **kwargs)
+    #: How far out from the middle of the machine each bar stands.
+    offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
+              - z_rod_z_bar_distance)
+
+    bars = ThreadedRod(length=Z_bar_length).repeat(2)
 
     def render(self):
         for side, bar in zip((-1, 1), self.bars):
             bar.rotate(self.angle.value, [0, 0, 1])
             bar.translate([side * self.offset, -XZStage_offset, BAR_BASE])
-        return self.bars

@@ -20,14 +20,10 @@ class ZRods(AssemblyNode):
     is capped top and bottom by a rod-end plate on the frame.
     """
 
-    def __init__(self, *args, **kwargs):
-        offset = machine_x_dim / 2 - thickness - lm8uu_diameter / 2
-        self.rods = [
-            SmoothRod(length=Z_rod_length).translate(
-                [side * offset, -XZStage_offset, BottomPanel_zoffset])
-            for side in (-1, 1)
-        ]
-        super().__init__(*args, **kwargs)
+    rods = SmoothRod(length=Z_rod_length).repeat(2)
 
     def render(self):
-        return self.rods
+        offset = machine_x_dim / 2 - thickness - lm8uu_diameter / 2
+        for rod, side in zip(self.rods, (-1, 1)):
+            rod.translate(
+                [side * offset, -XZStage_offset, BottomPanel_zoffset])

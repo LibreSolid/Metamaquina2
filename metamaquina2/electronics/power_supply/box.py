@@ -22,40 +22,45 @@ class PowerSupplyBox(AssemblyNode):
 
     It is a guard, not a chassis: the supply is bolted to the panel and
     this keeps fingers off its terminals.
+
+    The four plates are four different profiles, so each is its own
+    declaration; `PowerSupplyBoxPlate` names which by a string and so
+    keeps its constructor.
     """
 
-    def __init__(self, *args, **kwargs):
-        base = -PowerSupplyBox_height + PowerSupply_bottom_offset
-
-        self.side = PowerSupplyBoxPlate('side').translate(
-            [thickness, base, PowerSupply_thickness - thickness])
-
-        self.bottom = (PowerSupplyBoxPlate('bottom')
-                       .rotate(90, [1, 0, 0])
-                       .translate([thickness, base + thickness, 0]))
-
-        self.front = (PowerSupplyBoxPlate('front')
-                      .rotate(-90, [0, 1, 0])
-                      .translate([thickness, base, 0]))
-
-        self.back = (PowerSupplyBoxPlate('back')
-                     .rotate(-90, [0, 1, 0])
-                     .translate([PowerSupply_width
-                                 - PowerSupply_sheet_thickness, base, 0]))
-
-        self.inlet = (FemaleConnector()
-                      .rotate(180, [1, 0, 0])
-                      .rotate(90, [0, 0, 1])
-                      .translate([PowerSupply_thickness - thickness
-                                  - PSU_Female_border_height / 2,
-                                  (PowerSupplyBox_height
-                                   - PowerSupply_bottom_offset) / 2,
-                                  0])
-                      .rotate(-90, [0, 1, 0])
-                      .translate([PowerSupply_width
-                                  - PowerSupply_sheet_thickness, base, 0]))
-
-        super().__init__(*args, **kwargs)
+    side = PowerSupplyBoxPlate('side')
+    bottom = PowerSupplyBoxPlate('bottom')
+    front = PowerSupplyBoxPlate('front')
+    back = PowerSupplyBoxPlate('back')
+    inlet = FemaleConnector()
 
     def render(self):
-        return [self.side, self.bottom, self.front, self.back, self.inlet]
+        base = -PowerSupplyBox_height + PowerSupply_bottom_offset
+
+        self.side.translate(
+            [thickness, base, PowerSupply_thickness - thickness])
+
+        (self.bottom
+         .rotate(90, [1, 0, 0])
+         .translate([thickness, base + thickness, 0]))
+
+        (self.front
+         .rotate(-90, [0, 1, 0])
+         .translate([thickness, base, 0]))
+
+        (self.back
+         .rotate(-90, [0, 1, 0])
+         .translate([PowerSupply_width - PowerSupply_sheet_thickness,
+                     base, 0]))
+
+        (self.inlet
+         .rotate(180, [1, 0, 0])
+         .rotate(90, [0, 0, 1])
+         .translate([PowerSupply_thickness - thickness
+                     - PSU_Female_border_height / 2,
+                     (PowerSupplyBox_height
+                      - PowerSupply_bottom_offset) / 2,
+                     0])
+         .rotate(-90, [0, 1, 0])
+         .translate([PowerSupply_width - PowerSupply_sheet_thickness,
+                     base, 0]))

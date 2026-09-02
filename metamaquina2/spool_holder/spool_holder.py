@@ -36,6 +36,11 @@ SPOOL_HEIGHT = (SpoolHolder_total_height - SpoolHolder_top_cut_height
                 - spool_bore / 2 + SpoolHolder_bar_diameter / 2
                 - (SpoolHolder_top_cut_width - SpoolHolder_bar_diameter) / 2)
 
+#: Where the bar itself lies, which is the same height without the
+#: reel's own bore taken off it.
+BAR_HEIGHT = (SpoolHolder_total_height - SpoolHolder_top_cut_height
+              - (SpoolHolder_top_cut_width - SpoolHolder_bar_diameter) / 2)
+
 
 class SpoolHolder(AssemblyNode):
     """Two uprights, two end panels, a bar and the spool on it.
@@ -43,13 +48,20 @@ class SpoolHolder(AssemblyNode):
     A separate stand rather than part of the printer: it sits beside
     the machine and feeds filament up to the extruder, which is why the
     design draws it off to one side.
+
+    The two uprights are one part twice, and so are the two end panels
+    and the two cap nuts; the t-slot bolts that hold an upright on are
+    one fastener repeated over both uprights' tables.
     """
 
-    def __init__(self, *args, **kwargs):
-        bar_height = (SpoolHolder_total_height - SpoolHolder_top_cut_height
-                      - (SpoolHolder_top_cut_width
-                         - SpoolHolder_bar_diameter) / 2)
+    sides = SpoolHolderSidePanel().repeat(2)
+    side_joints = TSlotBolt().repeat(2 * len(SpoolHolder_TSLOTS))
+    ends = SpoolHolderEndPanel().repeat(2)
+    bar = SpoolHolderBar()
+    cap_nuts = M8DomedCapNut().repeat(2)
+    spool = FilamentSpool()
 
+    def render(self):
         def upright(node, offset, turned):
             node.rotate(90, [1, 0, 0])
             if turned:
@@ -57,53 +69,40 @@ class SpoolHolder(AssemblyNode):
             return node.translate([0, offset, 0]).rotate(90, [0, 0, 1])
 
         inset = SpoolHolder_width / 2 - thickness
-        self.sides = [upright(SpoolHolderSidePanel(), -inset, False),
-                      upright(SpoolHolderSidePanel(), inset, True)]
-        self.side_joints = [
-            upright(
-                TSlotBolt()
-                .translate([0, width / 2, 0])
-                .rotate(angle, [0, 0, 1])
-                .translate([x, y, 0]),
-                -inset if side == 0 else inset,
-                side == 1)
-            for side in (0, 1)
-            for x, y, width, angle in SpoolHolder_TSLOTS
-        ]
+        upright(self.sides[0], -inset, False)
+        upright(self.sides[1], inset, True)
+
+        joints = iter(self.side_joints)
+        for side in (0, 1):
+            for x, y, width, angle in SpoolHolder_TSLOTS:
+                upright(next(joints)
+                        .translate([0, width / 2, 0])
+                        .rotate(angle, [0, 0, 1])
+                        .translate([x, y, 0]),
+                        -inset if side == 0 else inset,
+                        side == 1)
 
         span = (SpoolHolder_total_width / 2 - thickness / 2
                 - SpoolHolder_adjust / 2)
-        self.ends = [
-            SpoolHolderEndPanel()
-            .rotate(90, [1, 0, 0])
-            .translate([0, -span, 0]),
-            SpoolHolderEndPanel()
-            .rotate(90, [1, 0, 0])
-            .rotate(180, [0, 0, 1])
-            .translate([0, span, 0]),
-        ]
+        self.ends[0].rotate(90, [1, 0, 0]).translate([0, -span, 0])
+        (self.ends[1]
+         .rotate(90, [1, 0, 0])
+         .rotate(180, [0, 0, 1])
+         .translate([0, span, 0]))
 
-        self.bar = (SpoolHolderBar()
-                    .rotate(90, [0, 1, 0])
-                    .translate([-SpoolHolder_bar_length / 2, 0, bar_height]))
+        (self.bar
+         .rotate(90, [0, 1, 0])
+         .translate([-SpoolHolder_bar_length / 2, 0, BAR_HEIGHT]))
 
         cap_offset = (SpoolHolder_bar_length
                       - 2 * SpoolHolder_cap_nut_hole) / 2
-        self.cap_nuts = [
-            M8DomedCapNut()
-            .rotate(90, [0, 1, 0])
-            .translate([cap_offset, 0, bar_height]),
-            M8DomedCapNut()
-            .rotate(270, [0, 1, 0])
-            .translate([-cap_offset, 0, bar_height]),
-        ]
+        (self.cap_nuts[0]
+         .rotate(90, [0, 1, 0])
+         .translate([cap_offset, 0, BAR_HEIGHT]))
+        (self.cap_nuts[1]
+         .rotate(270, [0, 1, 0])
+         .translate([-cap_offset, 0, BAR_HEIGHT]))
 
-        self.spool = (FilamentSpool()
-                      .rotate(90, [0, 1, 0])
-                      .translate([-FilamentSpool.width / 2, 0, SPOOL_HEIGHT]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return (self.sides + self.side_joints + self.ends
-                + [self.bar] + self.cap_nuts + [self.spool])
+        (self.spool
+         .rotate(90, [0, 1, 0])
+         .translate([-self.spool.width / 2, 0, SPOOL_HEIGHT]))

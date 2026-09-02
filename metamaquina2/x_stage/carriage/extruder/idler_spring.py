@@ -1,5 +1,7 @@
 """The spring that presses the extruder idler onto the filament."""
 
+from solid_node.node import Length
+
 from metamaquina2.params import m4_diameter
 from metamaquina2.spring import Spring
 
@@ -23,9 +25,14 @@ class IdlerSpring(Spring):
     wound in is the port's business rather than this part's.
     """
 
-    coil_diameter = 6.0
-    free_length = 16.5
-    bore = m4_diameter
+    #: The catalogue's free length, kept as a bare number as well
+    #: because the spring is both bought and drawn at it, and a
+    #: declaration cannot be assigned under two names.
+    FREE_LENGTH = 16.5
+
+    coil_diameter = Length(6.0, min=0)
+    free_length = Length(FREE_LENGTH, min=0)
+    bore = Length(m4_diameter, min=0)
 
     #: Drawn free: the design gives the preload no number.
-    installed = free_length
+    installed = Length(FREE_LENGTH, min=0)

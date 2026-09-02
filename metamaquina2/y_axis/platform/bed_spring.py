@@ -1,5 +1,7 @@
 """The spring a corner of the heated bed stands on."""
 
+from solid_node.node import Length
+
 from metamaquina2.params import (
     heatedbed_spring_length,
     m3_diameter,
@@ -50,7 +52,7 @@ class BedSpring(Spring):
     levelling screw that runs through it.
     """
 
-    coil_diameter = 4.5
-    free_length = heatedbed_spring_length
-    bore = m3_diameter
-    installed = INSTALLED
+    coil_diameter = Length(4.5, min=0)
+    free_length = Length(heatedbed_spring_length, min=0)
+    bore = Length(m3_diameter, min=0)
+    installed = Length(INSTALLED, min=0)

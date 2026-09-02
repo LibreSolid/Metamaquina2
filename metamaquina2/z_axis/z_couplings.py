@@ -32,17 +32,15 @@ class ZCouplings(AssemblyNode):
 
     angle = RotationalPort(unit='deg')
 
-    def __init__(self, *args, **kwargs):
-        self.offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
-                       - z_rod_z_bar_distance)
-        self.height = (BottomPanel_zoffset + motor_shaft_length
-                       - coupling_shaft_depth)
-        self.couplings = [ShaftCoupling() for _ in (-1, 1)]
-        super().__init__(*args, **kwargs)
+    offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
+              - z_rod_z_bar_distance)
+    height = (BottomPanel_zoffset + motor_shaft_length
+              - coupling_shaft_depth)
+
+    couplings = ShaftCoupling().repeat(2)
 
     def render(self):
         for side, coupling in zip((-1, 1), self.couplings):
             coupling.rotate(self.angle.value, [0, 0, 1])
             coupling.translate(
                 [side * self.offset, -XZStage_offset, self.height])
-        return self.couplings

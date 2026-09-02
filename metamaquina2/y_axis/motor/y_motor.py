@@ -57,12 +57,9 @@ class YMotor(AssemblyNode):
     #: nothing.
     pulley_offset = -(WIDTH - belt_width) / 2
 
-    def __init__(self, *args, **kwargs):
-        self.holder = self.mounted(YMotorHolder())
-        self.motor = self.on_motor(Nema17Mount())
-        self.pulley = GT2Pulley(period=PERIOD)
-
-        super().__init__(*args, **kwargs)
+    holder = YMotorHolder()
+    motor = Nema17Mount()
+    pulley = GT2Pulley(period=PERIOD)
 
     def mounted(self, node):
         """Stand `node` in the holder's frame, behind the rear bar."""
@@ -83,8 +80,9 @@ class YMotor(AssemblyNode):
                             .rotate(180, [1, 0, 0]))
 
     def render(self):
-        """Turn the pulley to where the belt's teeth are, and stand it
-        in the belt's own plane on the shaft.
+        """Stand the plate and the motor, turn the pulley to where the
+        belt's teeth are, and put it in the belt's own plane on the
+        shaft.
 
         The two rotations are the belt's own placement, so the pulley's
         local x lands on the loop's x and its axis on the loop's width:
@@ -93,10 +91,11 @@ class YMotor(AssemblyNode):
         goes on before them, so it turns the pulley about its own axis
         rather than swinging it around the machine.
         """
+        self.mounted(self.holder)
+        self.on_motor(self.motor)
+
         self.pulley.rotate(self.shaft.value, [0, 0, 1])
         self.pulley.rotate(90, [1, 0, 0])
         self.pulley.rotate(-90, [0, 0, 1])
         self.pulley.translate([belt_width / 2 - self.pulley_offset,
                                SHAFT[0], SHAFT[1]])
-
-        return [self.holder, self.motor, self.pulley]

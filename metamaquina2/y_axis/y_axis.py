@@ -53,15 +53,10 @@ class YAxis(AssemblyNode):
 
     platform_position = TranslationalPort(unit='mm')
 
-    def __init__(self, *args, **kwargs):
-        self.rods = YRods()
-        self.platform = YPlatform()
-        self.belt = (YBelt()
-                     .rotate(90, [1, 0, 0])
-                     .rotate(-90, [0, 0, 1])
-                     .translate(self.belt_position))
-        self.motor = YMotor()
-        super().__init__(*args, **kwargs)
+    rods = YRods()
+    platform = YPlatform()
+    belt = YBelt()
+    motor = YMotor()
 
     def render(self):
         """Stand the bed where the machine put it, tell the belt where
@@ -80,6 +75,11 @@ class YAxis(AssemblyNode):
         negated coordinate, because `y_belt` measures its angle in the
         loop's plane too.
         """
+        (self.belt
+         .rotate(90, [1, 0, 0])
+         .rotate(-90, [0, 0, 1])
+         .translate(self.belt_position))
+
         placed = self.platform_position.value - XZStage_offset
 
         self.platform.translate([0, placed, 0])
@@ -87,5 +87,3 @@ class YAxis(AssemblyNode):
         self.connect(-placed - CLAMP_ORIGIN, self.belt.clamp)
 
         self.connect(pulley_angle(-placed), self.motor.shaft)
-
-        return [self.rods, self.platform, self.belt, self.motor]

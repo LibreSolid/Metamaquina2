@@ -19,46 +19,46 @@ from metamaquina2.params import (
 )
 
 
+#: The four corners the board and its cover are stacked at, in the
+#: board's own plane.
+CORNERS = [
+    (x, y)
+    for x in (RAMBo_border, RAMBo_width - RAMBo_border)
+    for y in (RAMBo_border, RAMBo_height - RAMBo_border)
+]
+
+
 class Rambo(AssemblyNode):
     """Board, cover, and the stack of spacers between them and the panel.
 
     At each of the four corners: two lasercut spacers hold the board
     off the panel, a hex spacer holds the cover off the board, and a
     bolt closes the stack.  Drawn in the left panel's own plane.
+
+    Each of those three is one part repeated over the four corners.
     """
 
     connector_position = (100, 60)
 
-    def __init__(self, *args, **kwargs):
-        corners = [
-            (x, y)
-            for x in (RAMBo_border, RAMBo_width - RAMBo_border)
-            for y in (RAMBo_border, RAMBo_height - RAMBo_border)
-        ]
+    panel_spacers = DoubleM3Spacer().repeat(len(CORNERS))
+    cover_spacers = HexSpacer32mm().repeat(len(CORNERS))
+    cover_bolts = CoverBolt().repeat(len(CORNERS))
+    board = RamboPcb()
+    connector = PsuConnector()
+    cover = RamboCover()
+
+    def render(self):
         board_deck = 2 * thickness
         cover_deck = board_deck + RAMBo_pcb_thickness
 
-        self.panel_spacers = [
-            DoubleM3Spacer().translate([x, y, 0]) for x, y in corners
-        ]
-        self.cover_spacers = [
-            HexSpacer32mm().translate([x, y, cover_deck]) for x, y in corners
-        ]
-        self.cover_bolts = [
-            CoverBolt().translate(
+        for corner, (x, y) in enumerate(CORNERS):
+            self.panel_spacers[corner].translate([x, y, 0])
+            self.cover_spacers[corner].translate([x, y, cover_deck])
+            self.cover_bolts[corner].translate(
                 [x, y, cover_deck + hexspacer_length + RAMBo_cover_thickness])
-            for x, y in corners
-        ]
 
-        self.board = RamboPcb().translate([0, 0, board_deck])
-        self.connector = PsuConnector().translate(
+        self.board.translate([0, 0, board_deck])
+        self.connector.translate(
             [self.connector_position[0], self.connector_position[1],
              cover_deck])
-        self.cover = RamboCover().translate(
-            [0, 0, cover_deck + hexspacer_length])
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return (self.panel_spacers + self.cover_spacers + self.cover_bolts
-                + [self.board, self.connector, self.cover])
+        self.cover.translate([0, 0, cover_deck + hexspacer_length])

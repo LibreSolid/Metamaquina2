@@ -1,6 +1,6 @@
 """The electronics: controller, power supply, endstops and cable clips."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Flag
 
 from metamaquina2 import frames
 from metamaquina2.electronics.cable_clips import CableClips
@@ -22,30 +22,32 @@ class Electronics(AssemblyNode):
 
     The controller goes on the left panel, the power supply on the
     right, the endstops where each axis ends, and the clips wherever
-    the loom needs holding down.  The power supply is fitted only when
-    the design is configured for the Hiqua brick this machine ships
-    with.
+    the loom needs holding down.
+
+    The power supply is the one part of this machine that is fitted or
+    not: the design configures it with `HIQUA_POWERSUPPLY`, which is
+    the brick this machine ships with, and a machine built without it
+    is a machine with a different mass and a shorter bill of
+    materials.  So it is a flag the root passes down and an `omit()`,
+    not a `None` the render has to step around.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.rambo = frames.left_panel(
-            Rambo().translate([RAMBo_x, RAMBo_y, thickness]))
+    power_supply_fitted = Flag(HIQUA_POWERSUPPLY)
 
-        self.endstops = Endstops()
-        self.cable_clips = CableClips()
+    rambo = Rambo()
+    endstops = Endstops()
+    cable_clips = CableClips()
+    power_supply = PowerSupply()
 
-        self.power_supply = None
-        if HIQUA_POWERSUPPLY:
-            self.power_supply = frames.right_panel(
-                PowerSupply()
+    def render(self):
+        frames.left_panel(
+            self.rambo.translate([RAMBo_x, RAMBo_y, thickness]))
+
+        if self.power_supply_fitted:
+            frames.right_panel(
+                self.power_supply
                 .rotate(180, [0, 1, 0])
                 .translate([powersupply_Xposition,
                             powersupply_Yposition, 0]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        children = [self.rambo, self.endstops, self.cable_clips]
-        if self.power_supply is not None:
-            children.append(self.power_supply)
-        return children
+        else:
+            self.power_supply.omit()

@@ -45,7 +45,7 @@ wire standing proud at each end, which is what `rise` is about.
 """
 
 from molejo import Circle, Helix, P, Shape
-from solid_node.node import MolejoNode, TranslationalPort
+from solid_node.node import Length, MolejoNode, TranslationalPort
 
 from metamaquina2 import materials
 from metamaquina2.scad import scad_sources
@@ -130,60 +130,62 @@ class Spring(MolejoNode):
     color = materials.METAL
 
     #: What the bill of materials buys: the coil's outside diameter and
-    #: its free length, both in millimetres.
-    coil_diameter = None
-    free_length = None
+    #: its free length, both in millimetres.  Neither has a default: a
+    #: spring with no catalogue line behind it is not a part, so the
+    #: subclass that names one supplies all four.
+    coil_diameter = Length(min=0)
+    free_length = Length(min=0)
 
     #: The shank the spring is threaded on, which is what its bore has
     #: to clear.
-    bore = None
+    bore = Length(min=0)
 
     #: The length the design leaves the spring standing in.
-    installed = None
+    installed = Length(min=0)
 
     #: Published so a contract can ask the metal for the clearance the
-    #: wire was derived from, rather than restating it.
+    #: wire was derived from, rather than restating it.  Bare, not
+    #: declared: it is the same number for every spring on this machine
+    #: and nothing chooses it per part.
     bore_clearance = BORE_CLEARANCE
+
+    #: How thick the wire is: the catalogue's outside diameter, less the
+    #: shank it has to run on and the clearance it runs with, halved
+    #: because the wire is on both sides of the bore.  The same
+    #: arithmetic `wire()` does, written as a formula so it follows the
+    #: three numbers it is made of.
+    #:
+    #: The clearance is wrapped rather than read bare: a plain module
+    #: constant is dimensionless to the algebra, which refuses a length
+    #: minus a number, and this one is a length.
+    wire_diameter = (coil_diameter - bore - Length(BORE_CLEARANCE)) / 2
+
+    #: The radius the wire's centre runs at.
+    #:
+    #: Half the catalogue's outside diameter, less half a wire: the
+    #: catalogue measures a spring across its outside and molejo sweeps
+    #: the wire along its centre line.
+    #:
+    #: Also how far off its own origin the coil's axis stands.  A
+    #: molejo path begins where the path has got to, which for a
+    #: spring's single helix is the origin, so the wire starts there
+    #: and the axis it winds about is a radius away in -x.  An
+    #: assembly standing a spring on a bolt moves it out by this much.
+    coil_radius = (coil_diameter - wire_diameter) / 2
+
+    #: The helix's own length at the installed length.
+    #:
+    #: Shorter than the space the spring occupies by one wire diameter,
+    #: because half a wire stands proud below the first turn and half
+    #: above the last.  An assembly that stands a spring on a face
+    #: therefore lifts it half a wire and gets the whole length back.
+    rise = installed - wire_diameter
 
     height = TranslationalPort(unit='mm')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.files = self.files | scad_sources()
-
-    @property
-    def wire_diameter(self):
-        """How thick the wire is."""
-        return wire(self.coil_diameter, self.bore)
-
-    @property
-    def coil_radius(self):
-        """The radius the wire's centre runs at.
-
-        Half the catalogue's outside diameter, less half a wire: the
-        catalogue measures a spring across its outside and molejo sweeps
-        the wire along its centre line.
-
-        Also how far off its own origin the coil's axis stands.  A
-        molejo path begins where the path has got to, which for a
-        spring's single helix is the origin, so the wire starts there
-        and the axis it winds about is a radius away in -x.  An
-        assembly standing a spring on a bolt moves it out by this
-        much.
-        """
-        return (self.coil_diameter - self.wire_diameter) / 2
-
-    @property
-    def rise(self):
-        """The helix's own length at the installed length.
-
-        Shorter than the space the spring occupies by one wire
-        diameter, because half a wire stands proud below the first turn
-        and half above the last.  An assembly that stands a spring on a
-        face therefore lifts it half a wire and gets the whole length
-        back.
-        """
-        return self.installed - self.wire_diameter
 
     @property
     def turns(self):

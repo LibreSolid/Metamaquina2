@@ -26,6 +26,31 @@ from metamaquina2.y_axis.platform.right_sandwich import RightBearingSandwich
 from metamaquina2.y_axis.platform.sandwich_bolt import SandwichBolt
 
 
+#: The bolt patterns of the two bearing sandwiches, each in its own
+#: plane, and where the spacers that set their gaps stand.
+LEFT_BOLT_HOLES = ((14, 20), (14, -20), (-14, 0))
+RIGHT_BOLT_HOLES = ((14, 50), (14, -50), (-14, 50), (-14, -50))
+
+
+def _spacer_positions():
+    """Where every pair of stacked spacers stands, across the platform.
+
+    One behind the left bearing and two beside it, then four around the
+    right-hand pair -- the same five points the design's own sandwiches
+    are bolted at.
+    """
+    left = -Y_rods_distance / 2
+    right = Y_rods_distance / 2
+    positions = [(left - 14, 0)]
+    positions += [(left + 14, side * 20) for side in (-1, 1)]
+    positions += [(right + side * 14, corner * 50)
+                  for side in (-1, 1) for corner in (-1, 1)]
+    return positions
+
+
+SPACER_POSITIONS = _spacer_positions()
+
+
 class YPlatform(AssemblyNode):
     """Everything that travels with the bed.
 
@@ -47,6 +72,10 @@ class YPlatform(AssemblyNode):
 
     The platform is drawn where it sits at the middle of its travel;
     the Y axis moves it.
+
+    Everything that appears more than once here is one part repeated:
+    four levelling screws, four belt clamps, five pairs of spacers,
+    three bearings, seven sandwich bolts and two endstop tabs.
     """
 
     # where the belt clamps grip, either side of the centreline
@@ -54,86 +83,68 @@ class YPlatform(AssemblyNode):
     # the gap the second belt clamp of each pair leaves for the belt
     belt_gap = 3
     # the sandwich bolt patterns, in each sandwich's own plane
-    left_bolt_holes = ((14, 20), (14, -20), (-14, 0))
-    right_bolt_holes = ((14, 50), (14, -50), (-14, 50), (-14, -50))
+    left_bolt_holes = LEFT_BOLT_HOLES
+    right_bolt_holes = RIGHT_BOLT_HOLES
 
-    def __init__(self, *args, **kwargs):
+    heated_bed = HeatedBed()
+    plate = YPlatformPlate()
+    level_screws = BedLevelScrew().repeat(4)
+    belt_clamps = YBeltClamp().repeat(2 * len(belt_clamp_offsets))
+    spacers = DoubleM3Spacer().repeat(len(SPACER_POSITIONS))
+    left_sandwich = LeftBearingSandwich()
+    left_bolts = SandwichBolt().repeat(len(LEFT_BOLT_HOLES))
+    right_sandwich = RightBearingSandwich()
+    right_bolts = SandwichBolt().repeat(len(RIGHT_BOLT_HOLES))
+    bearings = LM8UU().repeat(3)
+    endstop_holders = YEndstopHolder().repeat(2)
+
+    def render(self):
         deck = YPlatform_zoffset
         left = -Y_rods_distance / 2
         right = Y_rods_distance / 2
 
-        self.heated_bed = HeatedBed().translate([0, 0, pcb_height])
-        self.plate = YPlatformPlate().translate([0, 0, deck])
+        self.heated_bed.translate([0, 0, pcb_height])
+        self.plate.translate([0, 0, deck])
 
-        self.level_screws = [
-            BedLevelScrew().translate(
+        corners = [(across, along)
+                   for across in (-1, 1) for along in (-1, 1)]
+        for screw, (across, along) in zip(self.level_screws, corners):
+            screw.translate(
                 [across * (heated_bed_pcb_width / 2 - heated_bed_hole_border),
                  along * (heated_bed_pcb_height / 2 - heated_bed_hole_border),
                  deck + thickness])
-            for across in (-1, 1) for along in (-1, 1)
-        ]
 
-        self.belt_clamps = []
+        clamps = iter(self.belt_clamps)
         for offset in self.belt_clamp_offsets:
-            self.belt_clamps.append(
-                YBeltClamp().translate([0, offset, deck - thickness]))
-            self.belt_clamps.append(
-                YBeltClamp().translate(
-                    [0, offset, deck - 2 * thickness - self.belt_gap]))
+            next(clamps).translate([0, offset, deck - thickness])
+            next(clamps).translate(
+                [0, offset, deck - 2 * thickness - self.belt_gap])
 
         spacer_deck = deck - bearing_sandwich_spacing
-        spacer_positions = [(left - 14, 0)]
-        spacer_positions += [(left + 14, side * 20) for side in (-1, 1)]
-        spacer_positions += [(right + side * 14, corner * 50)
-                             for side in (-1, 1) for corner in (-1, 1)]
-        self.spacers = [
-            DoubleM3Spacer().translate([x, y, spacer_deck])
-            for x, y in spacer_positions
-        ]
+        for spacer, (x, y) in zip(self.spacers, SPACER_POSITIONS):
+            spacer.translate([x, y, spacer_deck])
 
         sandwich_deck = spacer_deck - thickness
-        self.left_sandwich = LeftBearingSandwich().translate(
-            [left, 0, sandwich_deck])
-        self.left_bolts = [
-            SandwichBolt()
-            .rotate(180, [1, 0, 0])
-            .translate([left + x, y, sandwich_deck])
-            for x, y in self.left_bolt_holes
-        ]
+        self.left_sandwich.translate([left, 0, sandwich_deck])
+        for bolt, (x, y) in zip(self.left_bolts, self.left_bolt_holes):
+            (bolt
+             .rotate(180, [1, 0, 0])
+             .translate([left + x, y, sandwich_deck]))
 
-        self.right_sandwich = RightBearingSandwich().translate(
-            [right, 0, sandwich_deck])
-        self.right_bolts = [
-            SandwichBolt()
-            .rotate(180, [1, 0, 0])
-            .translate([right + x, y, sandwich_deck])
-            for x, y in self.right_bolt_holes
-        ]
+        self.right_sandwich.translate([right, 0, sandwich_deck])
+        for bolt, (x, y) in zip(self.right_bolts, self.right_bolt_holes):
+            (bolt
+             .rotate(180, [1, 0, 0])
+             .translate([right + x, y, sandwich_deck]))
 
         bearing_deck = deck - lm8uu_diameter / 2
-        self.bearings = [LM8UU().translate([left, 0, bearing_deck])]
-        self.bearings += [
-            LM8UU().translate([right, side * 50, bearing_deck])
-            for side in (-1, 1)
-        ]
+        self.bearings[0].translate([left, 0, bearing_deck])
+        for bearing, side in zip(self.bearings[1:], (-1, 1)):
+            bearing.translate([right, side * 50, bearing_deck])
 
-        self.endstop_holders = [
-            YEndstopHolder()
-            .rotate(-90, [1, 0, 0])
-            .translate([YEndstopHolder_distance / 2, 90, deck]),
-            YEndstopHolder()
-            .rotate(-90, [1, 0, 0])
-            .translate([-YEndstopHolder_distance / 2, -90 - thickness, deck]),
-        ]
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return ([self.heated_bed, self.plate]
-                + self.level_screws
-                + self.belt_clamps
-                + self.spacers
-                + [self.left_sandwich] + self.left_bolts
-                + [self.right_sandwich] + self.right_bolts
-                + self.bearings
-                + self.endstop_holders)
+        (self.endstop_holders[0]
+         .rotate(-90, [1, 0, 0])
+         .translate([YEndstopHolder_distance / 2, 90, deck]))
+        (self.endstop_holders[1]
+         .rotate(-90, [1, 0, 0])
+         .translate([-YEndstopHolder_distance / 2, -90 - thickness, deck]))

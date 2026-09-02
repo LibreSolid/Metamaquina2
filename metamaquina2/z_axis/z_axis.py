@@ -21,19 +21,18 @@ class ZAxis(AssemblyNode):
     shaft it joins, so there is no ratio between them to state.  The
     motors and the smooth rods take nothing: a stepper's case does not
     turn with its rotor, and a rod the stage slides on never did.
+
+    Nothing here is placed: each of the four stands in the machine's
+    own frame already, so `render` only wires the screw angle through.
     """
 
     screw = RotationalPort(unit='deg')
 
-    def __init__(self, *args, **kwargs):
-        self.motors = ZMotors()
-        self.couplings = ZCouplings()
-        self.bars = ZBars()
-        self.rods = ZRods()
-        super().__init__(*args, **kwargs)
+    motors = ZMotors()
+    couplings = ZCouplings()
+    bars = ZBars()
+    rods = ZRods()
 
     def render(self):
         self.connect(self.screw, self.bars.angle)
         self.connect(self.screw, self.couplings.angle)
-
-        return [self.motors, self.couplings, self.bars, self.rods]

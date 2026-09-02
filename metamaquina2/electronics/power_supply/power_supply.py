@@ -20,21 +20,15 @@ class PowerSupply(AssemblyNode):
     Drawn in the right panel's plane; the panel's frame stands it up.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.unit = PowerSupplyUnit()
-        self.box = PowerSupplyBox()
-
-        drop = -thickness - m3_washer_thickness
-        self.washers = []
-        self.bolts = []
-        for x, y in PowerSupply_mount_positions:
-            at = [PowerSupply_width - x, y, drop]
-            self.washers.append(M3Washer().translate(at))
-            self.bolts.append(
-                Bolt(diameter=3, length=10)
-                .rotate(180, [1, 0, 0]).translate(at))
-
-        super().__init__(*args, **kwargs)
+    unit = PowerSupplyUnit()
+    box = PowerSupplyBox()
+    washers = M3Washer().repeat(len(PowerSupply_mount_positions))
+    bolts = Bolt(diameter=3, length=10).repeat(
+        len(PowerSupply_mount_positions))
 
     def render(self):
-        return [self.unit, self.box] + self.washers + self.bolts
+        drop = -thickness - m3_washer_thickness
+        for mount, (x, y) in enumerate(PowerSupply_mount_positions):
+            at = [PowerSupply_width - x, y, drop]
+            self.washers[mount].translate(at)
+            self.bolts[mount].rotate(180, [1, 0, 0]).translate(at)
