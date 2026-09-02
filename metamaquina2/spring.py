@@ -84,16 +84,6 @@ RINGS_PER_TURN = 48
 PROFILE_SAMPLES = 16
 
 
-def wire(diameter, bore):
-    """How thick the wire of a spring of `diameter` over `bore` is.
-
-    The catalogue's outside diameter, less the shank it has to run on,
-    less the clearance it runs with, and half of that because the wire
-    is on both sides of the bore.
-    """
-    return (diameter - bore - BORE_CLEARANCE) / 2
-
-
 def turns(rise, wire_diameter):
     """How many turns fit in `rise` without the coils closing up.
 
@@ -151,9 +141,9 @@ class Spring(MolejoNode):
 
     #: How thick the wire is: the catalogue's outside diameter, less the
     #: shank it has to run on and the clearance it runs with, halved
-    #: because the wire is on both sides of the bore.  The same
-    #: arithmetic `wire()` does, written as a formula so it follows the
-    #: three numbers it is made of.
+    #: because the wire is on both sides of the bore.  A formula over
+    #: the three declared numbers, so it follows them; it used to be a
+    #: module function called from a property.
     #:
     #: The clearance is wrapped rather than read bare: a plain module
     #: constant is dimensionless to the algebra, which refuses a length

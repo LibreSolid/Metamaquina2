@@ -27,6 +27,40 @@ OpenSCAD and press F5 to render it.
 
 ![An OpenSCAD rendering of the Metamaquina 2 desktop 3d printer](https://raw.github.com/Metamaquina/Metamaquina2/master/img/MM2.png)
 
+The machine as a node tree
+==========================
+
+Beside the OpenSCAD design there is a second reading of it: a
+solid-node tree in `metamaquina2/`, in which every part a builder
+handles is a leaf and every group that gets put together before it goes
+into something bigger is an assembly. The geometry is still the .scad
+design's -- the nodes call its modules and read its dimensions -- and
+what the tree adds is where every part goes, the three axes as drivers,
+and the parts the design buys and never drew.
+
+    solid test metamaquina2/metamaquina2.py     # the contracts
+    solid build metamaquina2/metamaquina2.py    # build the machine
+    solid develop metamaquina2/metamaquina2.py  # watch and serve it
+
+Each node declares its parameters, so the one the machine itself
+declares can be set from the shell on any of those commands:
+
+    solid build metamaquina2/metamaquina2.py --set spool_holder_offset=500
+
+`spool_holder_offset` is how far beside the machine the filament stand
+sits, along the machine's own x -- the one placement here that this
+layer chooses rather than reads out of the design. Moving it moves the
+reel and the free run of filament is drawn again from wherever it
+lands.
+
+Everything else the machine is dimensioned by comes from the OpenSCAD
+sources themselves, evaluated once at import (`metamaquina2/params.py`),
+and is deliberately *not* a settable parameter: the parts are drawn by
+the .scad modules from those same variables, so a value overridden in
+Python would move where a part is put without changing the part, and
+the two readings would disagree. To change a dimension of this machine,
+change it in the design.
+
 Hacking the code
 ================
 Feel free to send us pull requests at https://github.com/Metamaquina/Metamaquina2

@@ -1,6 +1,6 @@
 """An X belt clamp and the bolts that tighten it."""
 
-from solid_node.node import AssemblyNode, Flag
+from solid_node.node import AssemblyNode, Flag, Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_washer import M3Washer
@@ -18,8 +18,10 @@ class XBeltClamp(AssemblyNode):
     mirror line, so they are the same either way.
     """
 
+    # where the two bolts stand either side of the clamp's centre
     bolt_offset = 9
-    bolt_length = 20
+
+    bolt_length = Length(20.0, min=0)
 
     flipped = Flag(False)
 

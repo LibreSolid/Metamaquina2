@@ -1,5 +1,7 @@
 """The bolt that holds the RAMBo cover down."""
 
+from solid_node.node import Length
+
 from metamaquina2 import materials
 from metamaquina2.part import ScadPart, curve
 from metamaquina2.params import M3_bolt_head
@@ -14,7 +16,7 @@ class CoverBolt(ScadPart):
     """
 
     color = materials.METAL
-    head_radius = 3
+    head_radius = Length(3.0, min=0)
 
     def render(self):
         return curve('cylinder', r=self.head_radius, h=M3_bolt_head)

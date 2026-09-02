@@ -1,6 +1,6 @@
 """The washer and bolt that pull a bearing sandwich together."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_washer import M3Washer
@@ -15,7 +15,7 @@ class SandwichBolt(AssemblyNode):
     it downwards.
     """
 
-    length = 30
+    length = Length(30.0, min=0)
 
     washer = M3Washer()
     bolt = Bolt(diameter=3, length=length)

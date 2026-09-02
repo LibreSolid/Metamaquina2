@@ -1,13 +1,9 @@
 """The idler the X belt turns around."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Length
 
 from metamaquina2.hardware.bearing_608zz import Bearing608zz
 from metamaquina2.hardware.smooth_rod import SmoothRod
-
-
-#: How long the shaft the bearing runs on is.
-SHAFT_LENGTH = 80
 
 
 class XIdlerPulley(AssemblyNode):
@@ -17,9 +13,9 @@ class XIdlerPulley(AssemblyNode):
     back-side out, so it only needs to be round.
     """
 
-    shaft_length = SHAFT_LENGTH
+    shaft_length = Length(80.0, min=0)
 
-    shaft = SmoothRod(length=SHAFT_LENGTH)
+    shaft = SmoothRod(length=shaft_length)
     bearing = Bearing608zz()
 
     def render(self):

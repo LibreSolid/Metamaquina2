@@ -1,6 +1,6 @@
 """One corner of the heated bed's levelling."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_nut import M3Nut
@@ -37,7 +37,7 @@ class BedLevelScrew(AssemblyNode):
     """
 
     #: What the bill of materials buys to hold each corner.
-    bolt_length = 30
+    bolt_length = Length(30.0, min=0)
 
     spring = BedSpring()
     seat_washer = M3Washer()
