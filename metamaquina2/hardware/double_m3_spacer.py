@@ -17,5 +17,7 @@ class DoubleM3Spacer(AssemblyNode):
     lower = M3Spacer()
     upper = M3Spacer()
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         self.upper.translate([0, 0, thickness])

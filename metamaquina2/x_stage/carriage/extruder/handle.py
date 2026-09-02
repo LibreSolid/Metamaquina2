@@ -95,17 +95,15 @@ class Handle(AssemblyNode):
     spring_washers = M4Washer().repeat(2)
     springs = IdlerSpring().repeat(2)
 
-    def render(self):
-        """Stand the two bolts and what rides on them, and tell each
-        spring how long it is standing.
+    def __init__(self, **kwargs):
+        """Stand the two bolts and what rides on them.
 
-        Its free length, because that is what the design draws: the
-        bolt is drawn with its tension nut at the very end of the
-        thread, which is the setting that presses the spring least.
-        How far in from there a maker winds it is a state the machine
-        has and the design never names, and the port is where it would
-        arrive.
+        Nothing here is placed by a driver -- the lever is squeezed by
+        hand and the machine has no state for it -- so the stack is
+        stood once, here, and never re-placed.
         """
+        super().__init__(**kwargs)
+
         for index, side in enumerate((-1, 1)):
             across = side * HandleWidth / 6
 
@@ -121,4 +119,16 @@ class Handle(AssemblyNode):
                 [across + spring.coil_radius, BOLT_ROW,
                  SPRING_SEAT + m4_washer_thickness
                  + spring.wire_diameter / 2])
+
+    def render(self):
+        """Tell each spring how long it is standing.
+
+        Its free length, because that is what the design draws: the
+        bolt is drawn with its tension nut at the very end of the
+        thread, which is the setting that presses the spring least.
+        How far in from there a maker winds it is a state the machine
+        has and the design never names, and the port is where it would
+        arrive.
+        """
+        for spring in self.springs:
             self.connect(spring.rise, spring.height)

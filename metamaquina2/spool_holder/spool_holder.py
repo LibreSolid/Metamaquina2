@@ -61,7 +61,9 @@ class SpoolHolder(AssemblyNode):
     cap_nuts = M8DomedCapNut().repeat(2)
     spool = FilamentSpool()
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         def upright(node, offset, turned):
             node.rotate(90, [1, 0, 0])
             if turned:

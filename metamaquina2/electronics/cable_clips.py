@@ -53,7 +53,9 @@ class CableClips(AssemblyNode):
     bottom = [CableClip(kind)
               for kind, _angle, _x, _y in bottom_cable_clips]
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         for clip, entry in zip(self.left, left_cable_clips):
             frames.left_panel(_under(clip, entry))
         for clip, entry in zip(self.right, right_cable_clips):

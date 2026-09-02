@@ -53,7 +53,9 @@ class FrontBars(AssemblyNode):
     lower_bar = ThreadedRod(length=horiz_bars_length)
     lower_caps = NutCap().repeat(2)
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         front = -RightPanel_basewidth / 2 + bar_cut_length
         upper_z = base_bars_Zdistance + base_bars_height
 

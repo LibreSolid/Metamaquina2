@@ -99,7 +99,9 @@ class Extruder(AssemblyNode):
     hot_end_bolts = Bolt(diameter=m3_diameter, length=hot_end_bolt).repeat(
         len(jhead_bolt_positions))
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         bolt_x, bolt_z = hobbed_bolt_position
         motor_x, motor_z = motor_position
         gear_gap = 5 * thickness / 2 + 2 * extruder_washer_thickness

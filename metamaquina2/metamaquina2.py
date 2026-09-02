@@ -344,7 +344,7 @@ class Metamaquina2(AssemblyNode):
         it is turned about that axis, so the reel's centre is simply
         the stand's position and the height it hangs the reel at.
 
-        Read rather than stored, because `render` has to read a point
+        Read rather than stored, because a render has to read a point
         of the machine back in this frame every time it binds the run's
         far end, and the stand's own place is now a declared parameter.
         """
@@ -352,6 +352,26 @@ class Metamaquina2(AssemblyNode):
         reel = [stand[0], stand[1], stand[2] + SPOOL_HEIGHT]
         return [reel[axis] + filament_module.OFFSET[axis]
                 for axis in range(3)]
+
+    def __init__(self, **kwargs):
+        """Stand the reel beside the machine and hang the stock on it.
+
+        Neither goes anywhere.  The stand is a separate piece of
+        furniture and does not move when the machine does, and the
+        strand's own frame is the stand's, so both are placed once,
+        from wherever `spool_holder_offset` puts the stand.  What
+        follows the machine is the shape of the free run, and that is
+        told to it every render through its ports.
+        """
+        super().__init__(**kwargs)
+
+        (self.spool_holder
+         .rotate(90, [0, 0, 1])
+         .translate(self.spool_holder_position))
+
+        (self.filament
+         .rotate(*filament_module.PLACEMENT)
+         .translate(self.strand_origin))
 
     def render(self):
         """Place what the drivers move, then hand over the children.
@@ -389,14 +409,7 @@ class Metamaquina2(AssemblyNode):
         height with the end's own two numbers, so the shape makes it out
         of ports already bound.
         """
-        (self.spool_holder
-         .rotate(90, [0, 0, 1])
-         .translate(self.spool_holder_position))
-
         strand_origin = self.strand_origin
-        (self.filament
-         .rotate(*filament_module.PLACEMENT)
-         .translate(strand_origin))
 
         self.connect(self.x, self.x_stage.carriage_position)
         self.connect(self.y, self.y_axis.platform_position)

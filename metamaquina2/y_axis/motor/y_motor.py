@@ -79,21 +79,29 @@ class YMotor(AssemblyNode):
                             .translate([ACROSS, -ALONG, -DEPTH])
                             .rotate(180, [1, 0, 0]))
 
+    def __init__(self, **kwargs):
+        """Stand the plate and bolt the motor into it.
+
+        Neither goes anywhere: the holder is bolted to the rear bars
+        and the motor to the holder, so they are stood once.
+        """
+        super().__init__(**kwargs)
+
+        self.mounted(self.holder)
+        self.on_motor(self.motor)
+
     def render(self):
-        """Stand the plate and the motor, turn the pulley to where the
-        belt's teeth are, and put it in the belt's own plane on the
-        shaft.
+        """Turn the pulley to where the belt's teeth are, and put it in
+        the belt's own plane on the shaft.
 
         The two rotations are the belt's own placement, so the pulley's
         local x lands on the loop's x and its axis on the loop's width:
         a groove drawn on the part's +X is then a groove at nought
         degrees of the plane `y_belt` measures its angles in.  The turn
         goes on before them, so it turns the pulley about its own axis
-        rather than swinging it around the machine.
+        rather than swinging it around the machine.  All four stay
+        here, because the first of them follows the axis.
         """
-        self.mounted(self.holder)
-        self.on_motor(self.motor)
-
         self.pulley.rotate(self.shaft.value, [0, 0, 1])
         self.pulley.rotate(90, [1, 0, 0])
         self.pulley.rotate(-90, [0, 0, 1])

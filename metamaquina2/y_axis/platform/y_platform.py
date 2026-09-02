@@ -98,7 +98,9 @@ class YPlatform(AssemblyNode):
     bearings = LM8UU().repeat(3)
     endstop_holders = YEndstopHolder().repeat(2)
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         deck = YPlatform_zoffset
         left = -Y_rods_distance / 2
         right = Y_rods_distance / 2

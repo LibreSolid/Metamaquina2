@@ -50,7 +50,9 @@ class Idler(AssemblyNode):
     upper_spacer = IdlerSpacer()
     back_plate = IdlerBackPlate()
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         axis_x, axis_y = idler_axis_position
         bearing_x, bearing_y = idler_bearing_position
 

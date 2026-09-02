@@ -33,7 +33,9 @@ class Panels(AssemblyNode):
     wiring_ring_below = WiringHoleRing()
     rod_ends = RodEnds()
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         frames.left_panel(self.left)
         frames.right_panel(self.right)
         frames.top_panel(self.top)

@@ -35,14 +35,18 @@ class PanelJoints(AssemblyNode):
 
     Every bolt of a side is the same fastener, so each side is one
     declaration repeated as many times as its table has entries, and
-    the table is read in `render` where the placements belong.
+    the table is read where the placements belong.  Nothing here moves
+    -- a bolt through a sheet stays where it is put -- so each is put
+    there once.
     """
 
     left = TSlotBolt().repeat(len(SidePanel_TSLOTS))
     right = TSlotBolt(flipped=True).repeat(len(SidePanel_TSLOTS))
     top = TSlotBolt().repeat(len(TopPanel_TSLOTS))
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         for bolt, slot in zip(self.left, SidePanel_TSLOTS):
             frames.left_panel(_place(bolt, slot))
         for bolt, slot in zip(self.right, SidePanel_TSLOTS):

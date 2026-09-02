@@ -58,6 +58,20 @@ class YAxis(AssemblyNode):
     belt = YBelt()
     motor = YMotor()
 
+    def __init__(self, **kwargs):
+        """Stand the belt loop where its idlers and its pulley hold it.
+
+        The loop does not go anywhere -- both its ends are bolted under
+        the platform -- so where it stands in the machine is said once.
+        What travels inside it is told to it every render, as a port.
+        """
+        super().__init__(**kwargs)
+
+        (self.belt
+         .rotate(90, [1, 0, 0])
+         .rotate(-90, [0, 0, 1])
+         .translate(self.belt_position))
+
     def render(self):
         """Stand the bed where the machine put it, tell the belt where
         it is being held, and turn the pulley to meet it.
@@ -75,11 +89,6 @@ class YAxis(AssemblyNode):
         negated coordinate, because `y_belt` measures its angle in the
         loop's plane too.
         """
-        (self.belt
-         .rotate(90, [1, 0, 0])
-         .rotate(-90, [0, 0, 1])
-         .translate(self.belt_position))
-
         placed = self.platform_position.value - XZStage_offset
 
         self.platform.translate([0, placed, 0])

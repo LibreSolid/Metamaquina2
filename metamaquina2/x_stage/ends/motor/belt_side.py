@@ -47,9 +47,9 @@ class XEndMotorBeltSide(AssemblyNode):
 
     The rotation is applied before the placement, so it turns the
     pulley about its own axis rather than swinging it around the
-    plate's corner, and every placement is applied in `render` so that
-    re-drawing at a new carriage position replaces them rather than
-    piling onto them.
+    plate's corner, and both stay in `render` so that re-drawing at a
+    new carriage position replaces them rather than piling onto them.
+    The plate and the motor do not turn, so they are stood once.
     """
 
     shaft = RotationalPort(unit='deg')
@@ -57,6 +57,16 @@ class XEndMotorBeltSide(AssemblyNode):
     plate = XEndMotorBeltPlate()
     motor = Nema17Mount()
     pulley = GT2Pulley(period=PERIOD)
+
+    def __init__(self, **kwargs):
+        """Stand the plate and bolt the motor to it."""
+        super().__init__(**kwargs)
+
+        self.plate.translate([0, thickness, 0])
+
+        (self.motor
+         .rotate(-180, [1, 0, 0])
+         .translate([XEnd_box_size / 2, XMotor_height, 0]))
 
     def render(self):
         """Turn the pulley to where the belt's teeth are, and put it on
@@ -66,12 +76,6 @@ class XEndMotorBeltSide(AssemblyNode):
         section is along its own, so `PULLEY_DEPTH` alone lands the two
         in one plane.
         """
-        self.plate.translate([0, thickness, 0])
-
-        (self.motor
-         .rotate(-180, [1, 0, 0])
-         .translate([XEnd_box_size / 2, XMotor_height, 0]))
-
         self.pulley.rotate(self.shaft.value, [0, 0, 1])
         self.pulley.translate(
             [XEnd_box_size / 2, XMotor_height, PULLEY_DEPTH])

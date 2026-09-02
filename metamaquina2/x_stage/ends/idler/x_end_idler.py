@@ -55,7 +55,9 @@ class XEndIdler(AssemblyNode):
     nut = M8Nut()
     bearings = LM8UU().repeat(2)
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         def on_machine(node):
             return node.translate([machine_x_dim / 2, 0, 0])
 

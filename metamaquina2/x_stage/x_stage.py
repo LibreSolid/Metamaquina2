@@ -89,6 +89,22 @@ class XStage(AssemblyNode):
     rods = XRods()
     belt = XBelt()
 
+    def __init__(self, **kwargs):
+        """Stand the belt loop where its idlers and its pulley hold it.
+
+        The loop does not go anywhere -- both its ends are bolted down
+        -- so where it stands in this frame is said once.  What travels
+        inside it is told to it every render, as a port.
+        """
+        super().__init__(**kwargs)
+
+        (self.belt
+         .rotate(90, [1, 0, 0])
+         .translate([0,
+                     XPlatform_width / 2 + XEnd_extra_width
+                     - belt_offset + thickness,
+                     0]))
+
     def render(self):
         """Slide the carriage to where the machine put it, tell the belt
         where it is being held, and turn the pulley to meet it.
@@ -109,13 +125,6 @@ class XStage(AssemblyNode):
         not the beam's; what the beam knows is that the two have to be
         told about the same carriage.
         """
-        (self.belt
-         .rotate(90, [1, 0, 0])
-         .translate([0,
-                     XPlatform_width / 2 + XEnd_extra_width
-                     - belt_offset + thickness,
-                     0]))
-
         self.carriage.translate(
             [self.carriage_position.value - XCarPosition, 0, 0])
 

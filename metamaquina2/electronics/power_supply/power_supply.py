@@ -26,7 +26,9 @@ class PowerSupply(AssemblyNode):
     bolts = Bolt(diameter=3, length=10).repeat(
         len(PowerSupply_mount_positions))
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         drop = -thickness - m3_washer_thickness
         for mount, (x, y) in enumerate(PowerSupply_mount_positions):
             at = [PowerSupply_width - x, y, drop]

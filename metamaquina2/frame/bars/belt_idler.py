@@ -35,7 +35,9 @@ class BeltIdler(AssemblyNode):
     nuts = M8Nut().repeat(2)
     bearing = Bearing608zz()
 
-    def render(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
         def place(node, offset, forward):
             node.translate([0, 0, bearing_thickness / 2 + offset])
             if not forward:
@@ -54,9 +56,19 @@ class BeltIdler(AssemblyNode):
             place(self.nuts[1],
                   offset + thickness + washer_thickness, False)
         else:
-            self.washers[2].omit()
             place(self.nuts[1], offset, False)
 
         (self.bearing
          .translate([0, 0, -bearing_thickness / 2])
          .rotate(90, [0, 1, 0]))
+
+    def render(self):
+        """Leave the third washer out of an idler that is not spaced.
+
+        Nothing on this idler moves, so the stack is placed once in
+        `__init__`; the presence of the spacing washer is decided
+        afresh every render, because the framework clears the mark
+        before it runs.
+        """
+        if not self.spaced:
+            self.washers[2].omit()
