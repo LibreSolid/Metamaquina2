@@ -24,25 +24,23 @@ class Panels(AssemblyNode):
     # where the wiring rings sit in the top panel's plane
     wiring_hole_offset = 120
 
-    def __init__(self, *args, **kwargs):
-        self.left = frames.left_panel(LeftPanel())
-        self.right = frames.right_panel(RightPanel())
-        self.top = frames.top_panel(TopPanel())
-        self.bottom = frames.bottom_panel(BottomPanel())
-        self.arc = frames.arc_panel(ArcPanel())
-
-        self.wiring_ring_above = frames.top_panel(
-            WiringHoleRing().translate(
-                [0, self.wiring_hole_offset, thickness]))
-        self.wiring_ring_below = frames.top_panel(
-            WiringHoleRing().translate(
-                [0, self.wiring_hole_offset, -thickness]))
-
-        self.rod_ends = RodEnds()
-
-        super().__init__(*args, **kwargs)
+    left = LeftPanel()
+    right = RightPanel()
+    top = TopPanel()
+    bottom = BottomPanel()
+    arc = ArcPanel()
+    wiring_ring_above = WiringHoleRing()
+    wiring_ring_below = WiringHoleRing()
+    rod_ends = RodEnds()
 
     def render(self):
-        return [self.left, self.right, self.top, self.bottom, self.arc,
-                self.wiring_ring_above, self.wiring_ring_below,
-                self.rod_ends]
+        frames.left_panel(self.left)
+        frames.right_panel(self.right)
+        frames.top_panel(self.top)
+        frames.bottom_panel(self.bottom)
+        frames.arc_panel(self.arc)
+
+        frames.top_panel(self.wiring_ring_above.translate(
+            [0, self.wiring_hole_offset, thickness]))
+        frames.top_panel(self.wiring_ring_below.translate(
+            [0, self.wiring_hole_offset, -thickness]))

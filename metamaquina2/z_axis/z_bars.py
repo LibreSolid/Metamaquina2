@@ -45,7 +45,7 @@ class ZBars(AssemblyNode):
     def __init__(self, *args, **kwargs):
         self.offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
                        - z_rod_z_bar_distance)
-        self.bars = [ThreadedRod(Z_bar_length) for _ in (-1, 1)]
+        self.bars = [ThreadedRod(length=Z_bar_length) for _ in (-1, 1)]
         super().__init__(*args, **kwargs)
 
     def render(self):

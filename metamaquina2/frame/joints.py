@@ -32,25 +32,21 @@ class PanelJoints(AssemblyNode):
     it is what makes them one frame.  The same table of slots serves
     both side panels; the right panel is bolted from its far face, so
     its bolts are flipped and offset by the panel's thickness.
+
+    Every bolt of a side is the same fastener, so each side is one
+    declaration repeated as many times as its table has entries, and
+    the table is read in `render` where the placements belong.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.left = [
-            frames.left_panel(_place(TSlotBolt(), slot))
-            for slot in SidePanel_TSLOTS
-        ]
-        self.right = [
-            frames.right_panel(
-                _place(TSlotBolt(flipped=True), slot)
-                .translate([0, 0, thickness]))
-            for slot in SidePanel_TSLOTS
-        ]
-        self.top = [
-            frames.top_panel(_place(TSlotBolt(), slot))
-            for slot in TopPanel_TSLOTS
-        ]
-
-        super().__init__(*args, **kwargs)
+    left = TSlotBolt().repeat(len(SidePanel_TSLOTS))
+    right = TSlotBolt(flipped=True).repeat(len(SidePanel_TSLOTS))
+    top = TSlotBolt().repeat(len(TopPanel_TSLOTS))
 
     def render(self):
-        return self.left + self.right + self.top
+        for bolt, slot in zip(self.left, SidePanel_TSLOTS):
+            frames.left_panel(_place(bolt, slot))
+        for bolt, slot in zip(self.right, SidePanel_TSLOTS):
+            frames.right_panel(
+                _place(bolt, slot).translate([0, 0, thickness]))
+        for bolt, slot in zip(self.top, TopPanel_TSLOTS):
+            frames.top_panel(_place(bolt, slot))

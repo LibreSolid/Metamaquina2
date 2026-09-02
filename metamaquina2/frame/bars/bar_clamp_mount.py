@@ -15,25 +15,25 @@ class BarClampMount(AssemblyNode):
     along X.
     """
 
-    def __init__(self, *args, **kwargs):
+    near_washer = M8Washer()
+    near_nut = M8Nut()
+    far_washer = M8Washer()
+    far_nut = M8Nut()
+    clamp = BarClamp()
+
+    def render(self):
         def place(node, offset, forward):
             node.translate([0, 0, barclamp_thickness / 2 + offset])
             if not forward:
                 node.rotate(180, [0, 1, 0])
-            return node.rotate(90, [0, 1, 0])
+            node.rotate(90, [0, 1, 0])
 
-        self.near_washer = place(M8Washer(), 0, True)
-        self.near_nut = place(M8Nut(), washer_thickness, True)
-        self.far_washer = place(M8Washer(), 0, False)
-        self.far_nut = place(M8Nut(), washer_thickness, False)
+        place(self.near_washer, 0, True)
+        place(self.near_nut, washer_thickness, True)
+        place(self.far_washer, 0, False)
+        place(self.far_nut, washer_thickness, False)
 
-        self.clamp = (BarClamp()
-                      .rotate(90, [1, 0, 0])
-                      .translate([-17, 6.7, -barclamp_thickness / 2])
-                      .rotate(90, [0, 1, 0]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.near_washer, self.near_nut,
-                self.far_washer, self.far_nut, self.clamp]
+        (self.clamp
+         .rotate(90, [1, 0, 0])
+         .translate([-17, 6.7, -barclamp_thickness / 2])
+         .rotate(90, [0, 1, 0]))

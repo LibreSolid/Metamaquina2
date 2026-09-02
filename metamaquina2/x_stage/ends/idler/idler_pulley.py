@@ -16,7 +16,7 @@ class XIdlerPulley(AssemblyNode):
     shaft_length = 80
 
     def __init__(self, *args, **kwargs):
-        self.shaft = SmoothRod(self.shaft_length).translate(
+        self.shaft = SmoothRod(length=self.shaft_length).translate(
             [0, 0, -self.shaft_length / 2])
         self.bearing = Bearing608zz()
         super().__init__(*args, **kwargs)

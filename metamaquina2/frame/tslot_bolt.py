@@ -1,6 +1,6 @@
 """The bolt, washer and nut that close one t-slot joint."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Flag, Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_nut import M3Nut
@@ -21,24 +21,24 @@ class TSlotBolt(AssemblyNode):
     that with `mirror([0, 0, 1])` around the whole group; node
     operations have no mirror, but every part here is a solid of
     revolution about the bolt axis, so flipping each part end for end
-    and negating its offset is the same geometry.
+    and negating its offset is the same geometry.  It selects nothing:
+    the same three parts are there either way, turned over.
     """
 
-    def __init__(self, length=16, flipped=False, **kwargs):
-        self.length = length
-        self.flipped = flipped
+    length = Length(16.0, min=0)
+    flipped = Flag(False)
 
-        def place(node, z):
-            if flipped:
-                node.rotate(180, [1, 0, 0])
-                z = -z
-            return node.translate([0, 0, z])
-
-        self.washer = place(M3Washer(), thickness)
-        self.bolt = place(Bolt(3, length), thickness + m3_washer_thickness)
-        self.nut = place(M3Nut(), 8 - length)
-
-        super().__init__(length, flipped, **kwargs)
+    washer = M3Washer()
+    bolt = Bolt(diameter=3.0, length=length)
+    nut = M3Nut()
 
     def render(self):
-        return [self.washer, self.bolt, self.nut]
+        def place(node, z):
+            if self.flipped:
+                node.rotate(180, [1, 0, 0])
+                z = -z
+            node.translate([0, 0, z])
+
+        place(self.washer, thickness)
+        place(self.bolt, thickness + m3_washer_thickness)
+        place(self.nut, 8 - self.length)

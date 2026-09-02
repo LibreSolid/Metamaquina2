@@ -23,7 +23,7 @@ class ZRods(AssemblyNode):
     def __init__(self, *args, **kwargs):
         offset = machine_x_dim / 2 - thickness - lm8uu_diameter / 2
         self.rods = [
-            SmoothRod(Z_rod_length).translate(
+            SmoothRod(length=Z_rod_length).translate(
                 [side * offset, -XZStage_offset, BottomPanel_zoffset])
             for side in (-1, 1)
         ]

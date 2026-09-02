@@ -3,6 +3,7 @@
 import math
 
 from solid2 import polygon
+from solid_node.node import Count, Length
 
 from metamaquina2 import gt2, materials
 from metamaquina2.params import motor_shaft_diameter
@@ -121,13 +122,14 @@ class GT2Pulley(ScadPart):
     #: is made with.
     SAMPLES = 16
 
-    def __init__(self, period=gt2.PITCH, teeth=TEETH, width=WIDTH,
-                 bore=motor_shaft_diameter, **kwargs):
-        self.period = period
-        self.teeth = teeth
-        self.width = width
-        self.bore = bore
-        super().__init__(period, teeth, width, bore, **kwargs)
+    #: What a pulley is: the pitch its grooves are cut at, how many of
+    #: them, how wide the toothed body is, and the shaft it is bored
+    #: for.  The pitch is the one an assembly always states, because it
+    #: is the belt's and not the pulley's -- see `x_belt.PERIOD`.
+    period = Length(gt2.PITCH, min=0)
+    teeth = Count(TEETH, min=1)
+    width = Length(WIDTH, min=0)
+    bore = Length(motor_shaft_diameter, min=0)
 
     @property
     def radius(self):

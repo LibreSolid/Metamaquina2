@@ -38,7 +38,7 @@ class XBeltClamp(AssemblyNode):
                 .translate([side * self.bolt_offset, 0, 0])
                 .rotate(180, [1, 0, 0]))
             self.bolts.append(
-                Bolt(3, self.bolt_length)
+                Bolt(diameter=3, length=self.bolt_length)
                 .translate([0, 0, m3_washer_thickness])
                 .translate([side * self.bolt_offset, 0, 0])
                 .rotate(180, [1, 0, 0]))

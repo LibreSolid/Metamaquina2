@@ -4,11 +4,11 @@ from solid_node.node import AssemblyNode
 
 from metamaquina2.frame.bars.bar_clamp_mount import BarClampMount
 from metamaquina2.frame.bars.belt_idler import BeltIdler
+from metamaquina2.frame.bars.front_bars import place_bar, place_caps
 from metamaquina2.frame.bars.nut_cap import NutCap
 from metamaquina2.hardware.threaded_rod import ThreadedRod
 from metamaquina2.params import (
     RightPanel_basewidth,
-    SidePanels_distance,
     Y_rods_distance,
     bar_cut_length,
     base_bars_Zdistance,
@@ -29,43 +29,25 @@ class RearBars(AssemblyNode):
 
     lower_bar_setback = 30
 
-    def __init__(self, *args, **kwargs):
-        rear = RightPanel_basewidth / 2 - bar_cut_length
-
-        def bar():
-            return (ThreadedRod(horiz_bars_length)
-                    .translate([0, 0, -horiz_bars_length / 2])
-                    .rotate(90, [0, 1, 0]))
-
-        def caps(z):
-            right = NutCap().translate([SidePanels_distance / 2, 0, z])
-            left = (NutCap()
-                    .rotate(180, [0, 0, 1])
-                    .translate([-SidePanels_distance / 2, 0, z]))
-            return [right, left]
-
-        upper_z = base_bars_Zdistance + base_bars_height
-        self.upper_bar = bar().translate([0, rear, upper_z])
-        self.upper_caps = [cap.translate([0, rear, 0])
-                           for cap in caps(upper_z)]
-        self.rod_clamps = [
-            BarClampMount().translate(
-                [side * Y_rods_distance / 2, rear, upper_z])
-            for side in (-1, 1)
-        ]
-        self.upper_idler = BeltIdler(spaced=True).translate(
-            [0, rear, upper_z])
-
-        lower_y = rear - self.lower_bar_setback
-        self.lower_bar = bar().translate([0, lower_y, base_bars_height])
-        self.lower_caps = [cap.translate([0, lower_y, 0])
-                           for cap in caps(base_bars_height)]
-        self.lower_idler = BeltIdler(spaced=True).translate(
-            [0, lower_y, base_bars_height])
-
-        super().__init__(*args, **kwargs)
+    upper_bar = ThreadedRod(length=horiz_bars_length)
+    upper_caps = NutCap().repeat(2)
+    rod_clamps = BarClampMount().repeat(2)
+    upper_idler = BeltIdler(spaced=True)
+    lower_bar = ThreadedRod(length=horiz_bars_length)
+    lower_caps = NutCap().repeat(2)
+    lower_idler = BeltIdler(spaced=True)
 
     def render(self):
-        return ([self.upper_bar] + self.upper_caps + self.rod_clamps
-                + [self.upper_idler, self.lower_bar] + self.lower_caps
-                + [self.lower_idler])
+        rear = RightPanel_basewidth / 2 - bar_cut_length
+        upper_z = base_bars_Zdistance + base_bars_height
+
+        place_bar(self.upper_bar, rear, upper_z)
+        place_caps(self.upper_caps, rear, upper_z)
+        for clamp, side in zip(self.rod_clamps, (-1, 1)):
+            clamp.translate([side * Y_rods_distance / 2, rear, upper_z])
+        self.upper_idler.translate([0, rear, upper_z])
+
+        lower_y = rear - self.lower_bar_setback
+        place_bar(self.lower_bar, lower_y, base_bars_height)
+        place_caps(self.lower_caps, lower_y, base_bars_height)
+        self.lower_idler.translate([0, lower_y, base_bars_height])

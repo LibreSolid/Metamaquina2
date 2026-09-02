@@ -136,7 +136,7 @@ class Extruder(AssemblyNode):
 
         self.hot_end = HotEnd().rotate(-90, [0, 0, 1])
         self.hot_end_bolts = [
-            Bolt(m3_diameter, self.hot_end_bolt)
+            Bolt(diameter=m3_diameter, length=self.hot_end_bolt)
             .rotate(-90, [1, 0, 0])
             .translate([x, 5 * thickness / 2, z])
             for x, z in jhead_bolt_positions

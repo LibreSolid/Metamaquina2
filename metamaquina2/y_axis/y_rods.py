@@ -11,7 +11,7 @@ class YRods(AssemblyNode):
 
     def __init__(self, *args, **kwargs):
         self.rods = [
-            SmoothRod(Y_rod_length)
+            SmoothRod(length=Y_rod_length)
             .rotate(-90, [1, 0, 0])
             .translate([side * Y_rods_distance / 2,
                         -Y_rod_length / 2, Y_rod_height])

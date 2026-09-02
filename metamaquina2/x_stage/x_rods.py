@@ -16,7 +16,7 @@ class XRods(AssemblyNode):
 
     def __init__(self, *args, **kwargs):
         self.rods = [
-            SmoothRod(X_rod_length)
+            SmoothRod(length=X_rod_length)
             .translate([0, 0, -X_rod_length / 2])
             .rotate(90, [0, 1, 0])
             .translate([0, side * X_rods_distance / 2,

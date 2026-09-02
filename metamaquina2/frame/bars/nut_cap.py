@@ -17,22 +17,21 @@ class NutCap(AssemblyNode):
     X.
     """
 
-    def __init__(self, *args, **kwargs):
+    outer_washer = M8Washer()
+    cap_nut = M8DomedCapNut()
+    inner_washer = M8Washer()
+    inner_nut = M8Nut()
+
+    def render(self):
         def place(node, offset, outward):
             node.translate([0, 0, thickness / 2 + offset])
             if not outward:
                 node.rotate(180, [0, 1, 0])
-            return (node
-                    .translate([0, 0, -thickness / 2])
-                    .rotate(90, [0, 1, 0]))
+            (node
+             .translate([0, 0, -thickness / 2])
+             .rotate(90, [0, 1, 0]))
 
-        self.outer_washer = place(M8Washer(), 0, True)
-        self.cap_nut = place(M8DomedCapNut(), washer_thickness, True)
-        self.inner_washer = place(M8Washer(), 0, False)
-        self.inner_nut = place(M8Nut(), washer_thickness, False)
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.outer_washer, self.cap_nut,
-                self.inner_washer, self.inner_nut]
+        place(self.outer_washer, 0, True)
+        place(self.cap_nut, washer_thickness, True)
+        place(self.inner_washer, 0, False)
+        place(self.inner_nut, washer_thickness, False)

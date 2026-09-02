@@ -13,13 +13,11 @@ class Frame(AssemblyNode):
     Five panels bolted to each other through t-slots, four threaded
     bars pulling the sides together, and the rod-end plates that will
     take the Z axis.
+
+    Each part of it already stands where it belongs in the machine's
+    own frame, so there is nothing here to position.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.panels = Panels()
-        self.joints = PanelJoints()
-        self.bars = Bars()
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.panels, self.joints, self.bars]
+    panels = Panels()
+    joints = PanelJoints()
+    bars = Bars()

@@ -1,6 +1,6 @@
 """A 608 bearing running as an idler on a horizontal frame bar."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Flag
 
 from metamaquina2.hardware.bearing_608zz import Bearing608zz
 from metamaquina2.hardware.m8_mudguard_washer import M8MudguardWasher
@@ -20,44 +20,43 @@ class BeltIdler(AssemblyNode):
 
     The mudguard washers are what the belt actually runs against, so
     they are what keeps it from walking off the bearing.  `spaced`
-    adds the extra washer and nut the rear bars need to clear the
-    panel behind them.  The origin is the middle of the bearing and
-    the bar runs along X.
+    adds the extra washer the rear bars need to clear the panel behind
+    them, and pushes the far nut out past it -- so the flag selects one
+    part's presence and one nut's offset, which is exactly what a
+    structural flag is for.  The origin is the middle of the bearing
+    and the bar runs along X.
     """
 
-    def __init__(self, spaced=False, **kwargs):
-        self.spaced = spaced
+    spaced = Flag(False)
 
+    #: Two washers against the bearing, and the third the spacing needs.
+    washers = M8Washer().repeat(3)
+    mudguard_washers = M8MudguardWasher().repeat(2)
+    nuts = M8Nut().repeat(2)
+    bearing = Bearing608zz()
+
+    def render(self):
         def place(node, offset, forward):
             node.translate([0, 0, bearing_thickness / 2 + offset])
             if not forward:
                 node.rotate(180, [0, 1, 0])
-            return node.rotate(90, [0, 1, 0])
+            node.rotate(90, [0, 1, 0])
 
-        self.washers = []
-        self.mudguard_washers = []
-        self.nuts = []
-        for forward in (True, False):
-            self.washers.append(place(M8Washer(), 0, forward))
-            self.mudguard_washers.append(
-                place(M8MudguardWasher(), washer_thickness, forward))
+        place(self.washers[0], 0, True)
+        place(self.washers[1], 0, False)
+        place(self.mudguard_washers[0], washer_thickness, True)
+        place(self.mudguard_washers[1], washer_thickness, False)
 
-            offset = washer_thickness + mudguard_washer_thickness
-            if spaced and not forward:
-                self.washers.append(
-                    place(M8Washer(), offset + thickness, forward))
-                self.nuts.append(
-                    place(M8Nut(), offset + thickness + washer_thickness,
-                          forward))
-            else:
-                self.nuts.append(place(M8Nut(), offset, forward))
+        offset = washer_thickness + mudguard_washer_thickness
+        place(self.nuts[0], offset, True)
+        if self.spaced:
+            place(self.washers[2], offset + thickness, False)
+            place(self.nuts[1],
+                  offset + thickness + washer_thickness, False)
+        else:
+            self.washers[2].omit()
+            place(self.nuts[1], offset, False)
 
-        self.bearing = (Bearing608zz()
-                        .translate([0, 0, -bearing_thickness / 2])
-                        .rotate(90, [0, 1, 0]))
-
-        super().__init__(spaced, **kwargs)
-
-    def render(self):
-        return (self.washers + self.mudguard_washers + self.nuts
-                + [self.bearing])
+        (self.bearing
+         .translate([0, 0, -bearing_thickness / 2])
+         .rotate(90, [0, 1, 0]))

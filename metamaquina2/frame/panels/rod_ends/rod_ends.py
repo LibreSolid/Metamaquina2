@@ -24,34 +24,32 @@ class RodEnds(AssemblyNode):
     the same parts as the left, turned around.
     """
 
-    def __init__(self, *args, **kwargs):
+    top_left = RodEndTop()
+    top_left_secondary = SecondaryRodEndTop()
+    top_right = RodEndTop()
+    top_right_secondary = SecondaryRodEndTop()
+    bottom_left = RodEndBottom()
+    bottom_right = RodEndBottom()
+
+    def render(self):
         left = -Z_rods_distance / 2
         right = Z_rods_distance / 2
 
-        self.top_left = RodEndTop().translate(
+        self.top_left.translate(
             [left, -XZStage_offset, machine_height + thickness])
-        self.top_left_secondary = SecondaryRodEndTop().translate(
+        self.top_left_secondary.translate(
             [left, -XZStage_offset, machine_height - thickness])
 
-        self.top_right = (RodEndTop()
-                          .rotate(180, [0, 0, 1])
-                          .translate([right, -XZStage_offset,
-                                      machine_height + thickness]))
-        self.top_right_secondary = (SecondaryRodEndTop()
-                                    .rotate(180, [0, 0, 1])
-                                    .translate([right, -XZStage_offset,
-                                                machine_height - thickness]))
+        (self.top_right
+         .rotate(180, [0, 0, 1])
+         .translate([right, -XZStage_offset, machine_height + thickness]))
+        (self.top_right_secondary
+         .rotate(180, [0, 0, 1])
+         .translate([right, -XZStage_offset, machine_height - thickness]))
 
-        self.bottom_left = RodEndBottom().translate(
+        self.bottom_left.translate(
             [left, -XZStage_offset, BottomPanel_zoffset - thickness])
-        self.bottom_right = (RodEndBottom()
-                             .rotate(180, [0, 0, 1])
-                             .translate([right, -XZStage_offset,
-                                         BottomPanel_zoffset - thickness]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.top_left, self.top_left_secondary,
-                self.top_right, self.top_right_secondary,
-                self.bottom_left, self.bottom_right]
+        (self.bottom_right
+         .rotate(180, [0, 0, 1])
+         .translate([right, -XZStage_offset,
+                     BottomPanel_zoffset - thickness]))

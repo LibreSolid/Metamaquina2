@@ -46,8 +46,9 @@ class Idler(AssemblyNode):
         axis_x, axis_y = idler_axis_position
         bearing_x, bearing_y = idler_bearing_position
 
-        self.axle = (IdlerAxle()
-                     .translate([0, 0, -IdlerAxle.length])
+        axle = IdlerAxle()
+        self.axle = (axle
+                     .translate([0, 0, -axle.length])
                      .translate([bearing_x, bearing_y, 5 * thickness]))
 
         def on_arm(node):

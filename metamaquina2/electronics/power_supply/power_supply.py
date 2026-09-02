@@ -31,7 +31,8 @@ class PowerSupply(AssemblyNode):
             at = [PowerSupply_width - x, y, drop]
             self.washers.append(M3Washer().translate(at))
             self.bolts.append(
-                Bolt(3, 10).rotate(180, [1, 0, 0]).translate(at))
+                Bolt(diameter=3, length=10)
+                .rotate(180, [1, 0, 0]).translate(at))
 
         super().__init__(*args, **kwargs)
 

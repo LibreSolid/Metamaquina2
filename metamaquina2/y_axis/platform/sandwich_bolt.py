@@ -19,7 +19,8 @@ class SandwichBolt(AssemblyNode):
 
     def __init__(self, *args, **kwargs):
         self.washer = M3Washer()
-        self.bolt = Bolt(3, self.length).translate([0, 0, m3_washer_thickness])
+        self.bolt = Bolt(diameter=3, length=self.length).translate(
+            [0, 0, m3_washer_thickness])
         super().__init__(*args, **kwargs)
 
     def render(self):

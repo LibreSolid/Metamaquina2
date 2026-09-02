@@ -53,7 +53,7 @@ class BedLevelScrew(AssemblyNode):
         # on bare board and the glass comes off past it.
         head_seat = SEAT + heated_bed_pcb_thickness
         self.head_washer = M3Washer().translate([0, 0, head_seat])
-        self.bolt = Bolt(3, self.bolt_length).translate(
+        self.bolt = Bolt(diameter=3, length=self.bolt_length).translate(
             [0, 0, head_seat + m3_washer_thickness])
 
         # Under the platform sheet, and the nut under that.

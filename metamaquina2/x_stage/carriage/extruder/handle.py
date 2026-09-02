@@ -101,7 +101,7 @@ class Handle(AssemblyNode):
             across = side * HandleWidth / 6
 
             self.bolts.append(
-                Bolt(4, handle_bolt_length).translate(
+                Bolt(diameter=4, length=handle_bolt_length).translate(
                     [across, BOLT_ROW,
                      handle_bolt_length - handle_nut_height]))
 

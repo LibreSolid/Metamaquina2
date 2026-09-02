@@ -12,12 +12,10 @@ class Bars(AssemblyNode):
     These are what actually make the machine rigid: the panels locate
     everything, but it is the bars, pulled up between the side panels,
     that stop the frame racking.
+
+    Nothing to position: the two halves stand in the machine's own
+    frame, so the class body is the whole assembly.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.front = FrontBars()
-        self.rear = RearBars()
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.front, self.rear]
+    front = FrontBars()
+    rear = RearBars()

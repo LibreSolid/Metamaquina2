@@ -14,10 +14,8 @@ class DoubleM3Spacer(AssemblyNode):
     assembly of two spacers rather than one part twice as thick.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.lower = M3Spacer()
-        self.upper = M3Spacer().translate([0, 0, thickness])
-        super().__init__(*args, **kwargs)
+    lower = M3Spacer()
+    upper = M3Spacer()
 
     def render(self):
-        return [self.lower, self.upper]
+        self.upper.translate([0, 0, thickness])

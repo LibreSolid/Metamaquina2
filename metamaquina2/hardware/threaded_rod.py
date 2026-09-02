@@ -1,6 +1,6 @@
 """A length of M8 threaded bar."""
 
-from solid_node.node import Build123dNode
+from solid_node.node import Build123dNode, Length
 
 from metamaquina2 import materials, thread
 from metamaquina2.params import m8_diameter
@@ -26,10 +26,8 @@ class ThreadedRod(Build123dNode):
 
     color = materials.THREADED_METAL
 
-    def __init__(self, length, diameter=m8_diameter, **kwargs):
-        self.length = length
-        self.diameter = diameter
-        super().__init__(length, diameter, **kwargs)
+    length = Length(min=0)
+    diameter = Length(m8_diameter, min=0)
 
     def render(self):
         return thread.thread(self.length, diameter=self.diameter)
