@@ -50,7 +50,17 @@ class XEndMotor(AssemblyNode):
 
     shaft = RotationalPort(unit='deg')
 
-    def __init__(self, *args, **kwargs):
+    back_plate = XEndMotorBackPlate()
+    back_joints = TSlotBolt().repeat(len(XEndMotor_back_face_TSLOTS))
+    bearing_sandwich = XEndBearingSandwich()
+    front_plate = XEndFrontPlate()
+    plain_plate = XEndMotorPlainPlate()
+    belt_side = XEndMotorBeltSide()
+    zlink = ZLink()
+    nut = M8Nut()
+    bearings = LM8UU().repeat(2)
+
+    def render(self):
         def on_machine(node):
             return node.translate([-machine_x_dim / 2, 0, 0])
 
@@ -61,37 +71,35 @@ class XEndMotor(AssemblyNode):
                     .rotate(-90, [0, 1, 0])
                     .translate([offset, 0, 0]))
 
-        self.back_plate = on_machine(upright(XEndMotorBackPlate(), thickness))
-        self.back_joints = [
+        on_machine(upright(self.back_plate, thickness))
+        for bolt, (x, y, width, angle) in zip(self.back_joints,
+                                              XEndMotor_back_face_TSLOTS):
             on_machine(upright(
-                TSlotBolt()
+                bolt
                 .translate([0, width / 2, 0])
                 .rotate(angle, [0, 0, 1])
                 .translate([x, y, 0]), thickness))
-            for x, y, width, angle in XEndMotor_back_face_TSLOTS
-        ]
 
-        self.bearing_sandwich = on_machine(XEndBearingSandwich())
+        on_machine(self.bearing_sandwich)
 
-        self.front_plate = on_machine(
-            upright(XEndFrontPlate(), XEnd_box_size + 2 * thickness))
+        on_machine(upright(self.front_plate, XEnd_box_size + 2 * thickness))
 
-        self.plain_plate = on_machine(
-            XEndMotorPlainPlate()
+        on_machine(
+            self.plain_plate
             .rotate(90, [1, 0, 0])
             .translate([thickness,
                         -XPlatform_width / 2 + 1.5 * thickness,
                         thickness]))
 
-        self.belt_side = on_machine(
-            XEndMotorBeltSide()
+        on_machine(
+            self.belt_side
             .rotate(90, [1, 0, 0])
             .translate([thickness,
                         XPlatform_width / 2 + XEnd_extra_width
                         - 0.5 * thickness, 0]))
 
-        self.zlink = on_machine(
-            ZLink()
+        on_machine(
+            self.zlink
             .rotate(-90, [1, 0, 0])
             .rotate(90, [0, 0, 1])
             .translate([thickness + lm8uu_diameter / 2 + z_rod_z_bar_distance
@@ -99,26 +107,17 @@ class XEndMotor(AssemblyNode):
                         0,
                         thickness + Zlink_hole_height]))
 
-        self.nut = on_machine(
-            M8Nut().translate(
+        on_machine(
+            self.nut.translate(
                 [thickness + lm8uu_diameter / 2 + z_rod_z_bar_distance,
                  0, NUT_SEAT]))
 
-        self.bearings = [
+        for bearing, end in zip(self.bearings, (-1, 1)):
             on_machine(
-                LM8UU()
+                bearing
                 .rotate(90, [1, 0, 0])
                 .translate([thickness + lm8uu_diameter / 2, 0,
-                            XPlatform_height / 2 + end * XPlatform_height / 2]))
-            for end in (-1, 1)
-        ]
+                            XPlatform_height / 2
+                            + end * XPlatform_height / 2]))
 
-        super().__init__(*args, **kwargs)
-
-    def render(self):
         self.connect(self.shaft, self.belt_side.shaft)
-
-        return ([self.back_plate] + self.back_joints
-                + [self.bearing_sandwich, self.front_plate,
-                   self.plain_plate, self.belt_side, self.zlink, self.nut]
-                + self.bearings)

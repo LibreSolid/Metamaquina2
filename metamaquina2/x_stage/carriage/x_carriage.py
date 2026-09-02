@@ -52,6 +52,23 @@ FILAMENT_ENTRY = [EXTRUDER_POSITION[0] - ENTRY_ON_THE_EXTRUDER[1],
 TOP = EXTRUDER_POSITION[2] + TOP_OF_THE_EXTRUDER
 
 
+def _spacer_positions():
+    """Where each pair of stacked spacers stands under the carriage
+    plate: two on each bearing line and one further out on each side."""
+    positions = []
+    for side in (-1, 1):
+        for edge in (-1, 1):
+            positions.append(
+                (side * XCarriage_lm8uu_distance / 2,
+                 edge * (XPlatform_width / 2 - XCarriage_padding)))
+        positions.append(
+            (side * (XCarriage_length / 2 - XCarriage_padding), 0))
+    return positions
+
+
+SPACER_POSITIONS = _spacer_positions()
+
+
 class XCarriage(AssemblyNode):
     """What rides the X rods: plate, bearings, belt clamps, extruder.
 
@@ -68,59 +85,49 @@ class XCarriage(AssemblyNode):
 
     spacer_span = 1.3
 
-    def __init__(self, *args, **kwargs):
+    plate = XCarriagePlate()
+    spacers = DoubleM3Spacer().repeat(len(SPACER_POSITIONS))
+    sandwich_plate = XCarriageSandwichPlate()
+    extruder = Extruder()
+    #: Two clamps, and they are two parts: the far one is the same
+    #: plate turned over, which the flag says and the artifact key
+    #: keeps apart.
+    belt_clamps = [XBeltClamp(flipped=False), XBeltClamp(flipped=True)]
+    bearings = LM8UU().repeat(4)
+
+    def render(self):
         deck = XCarriage_height
         bearing_reach = XCarriage_lm8uu_distance / 2
 
-        self.plate = XCarriagePlate().translate([XCarPosition, 0, deck])
+        self.plate.translate([XCarPosition, 0, deck])
 
         spacer_deck = deck - bearing_sandwich_spacing
-        positions = []
-        for side in (-1, 1):
-            for edge in (-1, 1):
-                positions.append(
-                    (side * bearing_reach,
-                     edge * (XPlatform_width / 2 - XCarriage_padding)))
-            positions.append(
-                (side * (XCarriage_length / 2 - XCarriage_padding), 0))
-        self.spacers = [
-            DoubleM3Spacer().translate([XCarPosition + x, y, spacer_deck])
-            for x, y in positions
-        ]
+        for spacer, (x, y) in zip(self.spacers, SPACER_POSITIONS):
+            spacer.translate([XCarPosition + x, y, spacer_deck])
 
-        self.sandwich_plate = XCarriageSandwichPlate().translate(
+        self.sandwich_plate.translate(
             [XCarPosition, 0, spacer_deck - thickness])
 
-        self.extruder = (Extruder()
-                         .rotate(EXTRUDER_ANGLE, [0, 0, 1])
-                         .translate(EXTRUDER_POSITION))
+        (self.extruder
+         .rotate(EXTRUDER_ANGLE, [0, 0, 1])
+         .translate(EXTRUDER_POSITION))
 
         clamp_y = (XPlatform_width / 2 + XEnd_extra_width - belt_offset
                    + belt_width)
         clamp_z = (belt_clamp_height + 2 * thickness + X_rod_height
                    + lm8uu_diameter / 2)
-        self.belt_clamps = [
-            XBeltClamp(flipped=(side == 1))
-            .rotate(180, [1, 0, 0])
-            .rotate(90, [0, 0, 1])
-            .translate([XCarPosition
-                        + side * self.spacer_span * (bearing_reach + 10),
-                        clamp_y, clamp_z])
-            for side in (-1, 1)
-        ]
+        for clamp, side in zip(self.belt_clamps, (-1, 1)):
+            (clamp
+             .rotate(180, [1, 0, 0])
+             .rotate(90, [0, 0, 1])
+             .translate([XCarPosition
+                         + side * self.spacer_span * (bearing_reach + 10),
+                         clamp_y, clamp_z]))
 
         rod_deck = thickness + X_rod_height
-        self.bearings = [
-            LM8UU()
-            .rotate(90, [0, 0, 1])
-            .translate([XCarPosition + side * bearing_reach,
-                        rod * X_rods_distance / 2, rod_deck])
-            for side in (-1, 1) for rod in (-1, 1)
-        ]
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return ([self.plate] + self.spacers
-                + [self.sandwich_plate, self.extruder]
-                + self.belt_clamps + self.bearings)
+        corners = [(side, rod) for side in (-1, 1) for rod in (-1, 1)]
+        for bearing, (side, rod) in zip(self.bearings, corners):
+            (bearing
+             .rotate(90, [0, 0, 1])
+             .translate([XCarPosition + side * bearing_reach,
+                         rod * X_rods_distance / 2, rod_deck]))

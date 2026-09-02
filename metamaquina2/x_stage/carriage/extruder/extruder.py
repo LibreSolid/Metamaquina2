@@ -86,7 +86,20 @@ class Extruder(AssemblyNode):
     #: thickness, so each one just spans the block.
     hot_end_bolt = 30
 
-    def __init__(self, *args, **kwargs):
+    block = ExtruderBlock()
+    idler = Idler()
+    handle = Handle()
+    gear = ExtruderGear()
+    hobbed_bolt = HobbedBolt()
+    hobbed_bolt_nut = M8Locknut()
+    bearings = Bearing608zz().repeat(2)
+    motor = Nema17Mount()
+    motor_gear = MotorGear()
+    hot_end = HotEnd()
+    hot_end_bolts = Bolt(diameter=m3_diameter, length=hot_end_bolt).repeat(
+        len(jhead_bolt_positions))
+
+    def render(self):
         bolt_x, bolt_z = hobbed_bolt_position
         motor_x, motor_z = motor_position
         gear_gap = 5 * thickness / 2 + 2 * extruder_washer_thickness
@@ -96,37 +109,34 @@ class Extruder(AssemblyNode):
                     .rotate(90, [1, 0, 0])
                     .translate([0, 2.5 * thickness, 0]))
 
-        self.block = upright(ExtruderBlock())
-        self.idler = upright(Idler())
+        upright(self.block)
+        upright(self.idler)
 
-        self.handle = (Handle()
-                       .rotate(-90, [0, 0, 1])
-                       .rotate(-90, [0, 1, 0])
-                       .translate(POSITION))
+        (self.handle
+         .rotate(-90, [0, 0, 1])
+         .rotate(-90, [0, 1, 0])
+         .translate(POSITION))
 
-        self.gear = (ExtruderGear()
-                     .rotate(90, [1, 0, 0])
-                     .rotate(extruder_gear_angle, [0, 1, 0])
-                     .translate([bolt_x, -gear_gap, bolt_z]))
+        (self.gear
+         .rotate(90, [1, 0, 0])
+         .rotate(extruder_gear_angle, [0, 1, 0])
+         .translate([bolt_x, -gear_gap, bolt_z]))
 
-        self.hobbed_bolt = (HobbedBolt()
-                            .rotate(180, [1, 0, 0])
-                            .translate([0, -self.hobbed_bolt_drop, 0])
-                            .translate([bolt_x, 0, bolt_z]))
-        self.hobbed_bolt_nut = (
-            M8Locknut()
-            .rotate(-90, [1, 0, 0])
-            .translate([0, 5 * thickness / 2 + extruder_washer_thickness, 0])
-            .translate([bolt_x, 0, bolt_z]))
+        (self.hobbed_bolt
+         .rotate(180, [1, 0, 0])
+         .translate([0, -self.hobbed_bolt_drop, 0])
+         .translate([bolt_x, 0, bolt_z]))
+        (self.hobbed_bolt_nut
+         .rotate(-90, [1, 0, 0])
+         .translate([0, 5 * thickness / 2 + extruder_washer_thickness, 0])
+         .translate([bolt_x, 0, bolt_z]))
 
-        self.bearings = [
-            Bearing608zz()
-            .rotate(90, [1, 0, 0])
-            .translate([bolt_x, -3 * thickness / 2, bolt_z]),
-            Bearing608zz()
-            .rotate(90, [1, 0, 0])
-            .translate([bolt_x, 3 * thickness / 2 + 7, bolt_z]),
-        ]
+        (self.bearings[0]
+         .rotate(90, [1, 0, 0])
+         .translate([bolt_x, -3 * thickness / 2, bolt_z]))
+        (self.bearings[1]
+         .rotate(90, [1, 0, 0])
+         .translate([bolt_x, 3 * thickness / 2 + 7, bolt_z]))
 
         def on_motor(node):
             return (node
@@ -134,26 +144,15 @@ class Extruder(AssemblyNode):
                     .rotate(-90, [1, 0, 0])
                     .translate([motor_x, -thickness / 2, motor_z]))
 
-        self.hot_end = HotEnd().rotate(-90, [0, 0, 1])
-        self.hot_end_bolts = [
-            Bolt(diameter=m3_diameter, length=self.hot_end_bolt)
-            .rotate(-90, [1, 0, 0])
-            .translate([x, 5 * thickness / 2, z])
-            for x, z in jhead_bolt_positions
-        ]
+        on_motor(self.motor)
+        on_motor(self.motor_gear
+                 .rotate(180, [1, 0, 0])
+                 .translate([0, 0,
+                             -2 * thickness
+                             - 2 * extruder_washer_thickness]))
 
-        self.motor = on_motor(Nema17Mount())
-        self.motor_gear = on_motor(
-            MotorGear()
-            .rotate(180, [1, 0, 0])
-            .translate([0, 0,
-                        -2 * thickness - 2 * extruder_washer_thickness]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return ([self.block, self.idler, self.handle, self.gear,
-                 self.hobbed_bolt, self.hobbed_bolt_nut]
-                + self.bearings
-                + [self.motor, self.motor_gear, self.hot_end]
-                + self.hot_end_bolts)
+        self.hot_end.rotate(-90, [0, 0, 1])
+        for bolt, (x, z) in zip(self.hot_end_bolts, jhead_bolt_positions):
+            (bolt
+             .rotate(-90, [1, 0, 0])
+             .translate([x, 5 * thickness / 2, z]))

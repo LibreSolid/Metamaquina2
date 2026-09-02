@@ -174,10 +174,10 @@ come from is in `params.py`, and how a part is authored is in
 `part.py`.
 """
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Length
 from solid_node.simulation import Driver, Instruction
 
-from metamaquina2 import filament, z_screw
+from metamaquina2 import filament as filament_module, z_screw
 from metamaquina2.electronics.electronics import Electronics
 from metamaquina2.filament import Filament
 from metamaquina2.frame.frame import Frame
@@ -271,8 +271,16 @@ class Metamaquina2(AssemblyNode):
     not a slow animation, it is the machine.
     """
 
-    # where the stand sits beside the machine
-    spool_holder_position = [400, 0, 0]
+    #: How far beside the machine the stand sits, along the machine's
+    #: own x.
+    #:
+    #: The one placement on this machine that is this layer's own
+    #: choice rather than the design's: the .scad draws the stand off
+    #: to one side and says nothing about how far.  Declared, so a
+    #: maker can stand the reel somewhere else and watch the free run
+    #: be drawn again from wherever it lands --
+    #: `--set spool_holder_offset=500`.
+    spool_holder_offset = Length(400.0)
 
     x = Driver(default=XCarPosition, unit='mm',
                range=(-BuildVolume_X / 2, BuildVolume_X / 2))
@@ -299,41 +307,44 @@ class Metamaquina2(AssemblyNode):
         'HomeZ': Instruction({'z': 0.0}, duration=z_screw.HOMING_TIME),
     }
 
-    def __init__(self, *args, **kwargs):
-        self.frame = Frame()
+    frame = Frame()
 
-        self.z_axis = ZAxis()
-        self.y_axis = YAxis()
-        self.x_stage = XStage()
+    z_axis = ZAxis()
+    y_axis = YAxis()
+    x_stage = XStage()
 
-        self.electronics = Electronics()
+    #: The power supply's own flag stays on the electronics, where the
+    #: part it gates lives: a Flag cannot be passed from a parent to a
+    #: child -- the framework refuses the token where it resolves a
+    #: Length or a Count -- so the machine cannot hold that knob and
+    #: `--set` cannot reach it.  Recorded rather than worked around.
+    electronics = Electronics()
 
-        self.spool_holder = (SpoolHolder()
-                             .rotate(90, [0, 0, 1])
-                             .translate(self.spool_holder_position))
+    spool_holder = SpoolHolder()
+    filament = Filament()
 
-        # Where the reel's axis stands, in the machine's coordinates.
-        # The stand is turned a quarter turn to put its bar across the
-        # machine, and a point on the stand's own axis does not move
-        # when it is turned about that axis, so the reel's centre is
-        # simply the stand's position and the height it hangs the reel
-        # at.
-        reel = [self.spool_holder_position[0],
-                self.spool_holder_position[1],
-                self.spool_holder_position[2] + SPOOL_HEIGHT]
+    @property
+    def spool_holder_position(self):
+        """Where the stand stands, in the machine's coordinates."""
+        return [self.spool_holder_offset, 0, 0]
 
-        #: Where the strand's own frame stands.  Held on the machine
-        #: rather than worked out twice, because `render` has to read a
-        #: point of the machine back in that frame every time it binds
-        #: the run's far end.
-        self.strand_origin = [reel[axis] + filament.OFFSET[axis]
-                              for axis in range(3)]
+    @property
+    def strand_origin(self):
+        """Where the strand's own frame stands.
 
-        self.filament = (Filament()
-                         .rotate(*filament.PLACEMENT)
-                         .translate(self.strand_origin))
+        The stand is turned a quarter turn to put its bar across the
+        machine, and a point on the stand's own axis does not move when
+        it is turned about that axis, so the reel's centre is simply
+        the stand's position and the height it hangs the reel at.
 
-        super().__init__(*args, **kwargs)
+        Read rather than stored, because `render` has to read a point
+        of the machine back in this frame every time it binds the run's
+        far end, and the stand's own place is now a declared parameter.
+        """
+        stand = self.spool_holder_position
+        reel = [stand[0], stand[1], stand[2] + SPOOL_HEIGHT]
+        return [reel[axis] + filament_module.OFFSET[axis]
+                for axis in range(3)]
 
     def render(self):
         """Place what the drivers move, then hand over the children.
@@ -371,6 +382,15 @@ class Metamaquina2(AssemblyNode):
         height with the end's own two numbers, so the shape makes it out
         of ports already bound.
         """
+        (self.spool_holder
+         .rotate(90, [0, 0, 1])
+         .translate(self.spool_holder_position))
+
+        strand_origin = self.strand_origin
+        (self.filament
+         .rotate(*filament_module.PLACEMENT)
+         .translate(strand_origin))
+
         self.connect(self.x, self.x_stage.carriage_position)
         self.connect(self.y, self.y_axis.platform_position)
         self.connect(self.z + z_screw.PHASE, self.z_axis.screw)
@@ -382,15 +402,12 @@ class Metamaquina2(AssemblyNode):
 
         entry = filament_entry(self.x)
         entry = [entry[axis] + stage[axis] for axis in range(3)]
-        head = filament.in_strand_frame(entry, self.strand_origin)
-        over = filament.in_strand_frame(
-            [CROSSING_X, entry[1], CROSSING_Z], self.strand_origin)
+        head = filament_module.in_strand_frame(entry, strand_origin)
+        over = filament_module.in_strand_frame(
+            [CROSSING_X, entry[1], CROSSING_Z], strand_origin)
 
         self.connect(over[0], self.filament.over_x)
         self.connect(over[1], self.filament.over_y)
         self.connect(head[0], self.filament.head_x)
         self.connect(head[1], self.filament.head_y)
         self.connect(head[2], self.filament.plane)
-
-        return [self.frame, self.z_axis, self.y_axis, self.x_stage,
-                self.electronics, self.spool_holder, self.filament]

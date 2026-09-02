@@ -35,29 +35,25 @@ class HotEnd(AssemblyNode):
     design's own call draws it square with the machine.  That is kept.
     """
 
-    def __init__(self, *args, **kwargs):
-        block = jhead.FOOT - jhead.BLOCK_HEIGHT
-
-        self.holder = NozzleHolder()
-
-        self.liner = PTFELiner().translate([0, 0, jhead.INSTALLATION])
-
-        self.nozzle = Nozzle().translate(
-            [-jhead.BLOCK_BORE_X, -jhead.BLOCK_BORE_Y, block])
-
-        self.resistor = (HeaterResistor()
-                         .rotate(90, [1, 0, 0])
-                         .translate([jhead.HEATER_X, 0,
-                                     block + jhead.HEATER_HEIGHT]))
-
-        self.thermistor = (Thermistor()
-                           .rotate(90, [0, 1, 0])
-                           .translate([-jhead.THERMISTOR_FACE,
-                                       jhead.THERMISTOR_Y,
-                                       block + jhead.THERMISTOR_HEIGHT]))
-
-        super().__init__(*args, **kwargs)
+    holder = NozzleHolder()
+    liner = PTFELiner()
+    nozzle = Nozzle()
+    resistor = HeaterResistor()
+    thermistor = Thermistor()
 
     def render(self):
-        return [self.holder, self.liner, self.nozzle,
-                self.resistor, self.thermistor]
+        block = jhead.FOOT - jhead.BLOCK_HEIGHT
+
+        self.liner.translate([0, 0, jhead.INSTALLATION])
+
+        self.nozzle.translate(
+            [-jhead.BLOCK_BORE_X, -jhead.BLOCK_BORE_Y, block])
+
+        (self.resistor
+         .rotate(90, [1, 0, 0])
+         .translate([jhead.HEATER_X, 0, block + jhead.HEATER_HEIGHT]))
+
+        (self.thermistor
+         .rotate(90, [0, 1, 0])
+         .translate([-jhead.THERMISTOR_FACE, jhead.THERMISTOR_Y,
+                     block + jhead.THERMISTOR_HEIGHT]))

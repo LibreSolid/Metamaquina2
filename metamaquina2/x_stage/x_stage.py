@@ -82,19 +82,12 @@ class XStage(AssemblyNode):
 
     carriage_position = TranslationalPort(unit='mm')
 
-    def __init__(self, *args, **kwargs):
-        self.end_motor = XEndMotor()
-        self.end_idler = XEndIdler()
-        self.carriage = XCarriage()
-        self.plate = XPlatformPlate()
-        self.rods = XRods()
-        self.belt = (XBelt()
-                     .rotate(90, [1, 0, 0])
-                     .translate([0,
-                                 XPlatform_width / 2 + XEnd_extra_width
-                                 - belt_offset + thickness,
-                                 0]))
-        super().__init__(*args, **kwargs)
+    end_motor = XEndMotor()
+    end_idler = XEndIdler()
+    carriage = XCarriage()
+    plate = XPlatformPlate()
+    rods = XRods()
+    belt = XBelt()
 
     def render(self):
         """Slide the carriage to where the machine put it, tell the belt
@@ -116,6 +109,13 @@ class XStage(AssemblyNode):
         not the beam's; what the beam knows is that the two have to be
         told about the same carriage.
         """
+        (self.belt
+         .rotate(90, [1, 0, 0])
+         .translate([0,
+                     XPlatform_width / 2 + XEnd_extra_width
+                     - belt_offset + thickness,
+                     0]))
+
         self.carriage.translate(
             [self.carriage_position.value - XCarPosition, 0, 0])
 
@@ -124,6 +124,3 @@ class XStage(AssemblyNode):
 
         self.connect(pulley_angle(self.carriage_position.value),
                      self.end_motor.shaft)
-
-        return [self.end_motor, self.end_idler, self.carriage,
-                self.plate, self.rods, self.belt]

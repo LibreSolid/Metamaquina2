@@ -14,16 +14,12 @@ from metamaquina2.params import (
 class XRods(AssemblyNode):
     """Two 8 mm rods running left to right between the X ends."""
 
-    def __init__(self, *args, **kwargs):
-        self.rods = [
-            SmoothRod(length=X_rod_length)
-            .translate([0, 0, -X_rod_length / 2])
-            .rotate(90, [0, 1, 0])
-            .translate([0, side * X_rods_distance / 2,
-                        thickness + X_rod_height])
-            for side in (-1, 1)
-        ]
-        super().__init__(*args, **kwargs)
+    rods = SmoothRod(length=X_rod_length).repeat(2)
 
     def render(self):
-        return self.rods
+        for rod, side in zip(self.rods, (-1, 1)):
+            (rod
+             .translate([0, 0, -X_rod_length / 2])
+             .rotate(90, [0, 1, 0])
+             .translate([0, side * X_rods_distance / 2,
+                         thickness + X_rod_height]))

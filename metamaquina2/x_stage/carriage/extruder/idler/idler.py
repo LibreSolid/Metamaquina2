@@ -42,22 +42,28 @@ class Idler(AssemblyNode):
     # the filament rather than open.
     back_face = idler_axis_position[0] - idler_radius
 
-    def __init__(self, *args, **kwargs):
+    axle = IdlerAxle()
+    lower_side = IdlerSidePlate()
+    upper_side = IdlerSidePlate()
+    lower_spacer = IdlerSpacer()
+    bearing = Bearing608zz()
+    upper_spacer = IdlerSpacer()
+    back_plate = IdlerBackPlate()
+
+    def render(self):
         axis_x, axis_y = idler_axis_position
         bearing_x, bearing_y = idler_bearing_position
 
-        axle = IdlerAxle()
-        self.axle = (axle
-                     .translate([0, 0, -axle.length])
-                     .translate([bearing_x, bearing_y, 5 * thickness]))
+        (self.axle
+         .translate([0, 0, -self.axle.length])
+         .translate([bearing_x, bearing_y, 5 * thickness]))
 
         def on_arm(node):
             """Into the arm's own frame, at the pivot."""
             return node.translate([axis_x, axis_y, 0])
 
-        self.lower_side = on_arm(IdlerSidePlate())
-        self.upper_side = on_arm(
-            IdlerSidePlate().translate([0, 0, 4 * thickness]))
+        on_arm(self.lower_side)
+        on_arm(self.upper_side.translate([0, 0, 4 * thickness]))
 
         def in_bearing_stack(node, height):
             return on_arm(
@@ -66,20 +72,11 @@ class Idler(AssemblyNode):
                 .translate([bearing_x - axis_x, bearing_y - axis_y, 0]))
 
         stack = thickness - self.spacer_clearance
-        self.lower_spacer = in_bearing_stack(IdlerSpacer(), 0)
-        self.bearing = in_bearing_stack(Bearing608zz(), stack)
-        self.upper_spacer = in_bearing_stack(
-            IdlerSpacer(), stack + bearing_thickness)
+        in_bearing_stack(self.lower_spacer, 0)
+        in_bearing_stack(self.bearing, stack)
+        in_bearing_stack(self.upper_spacer, stack + bearing_thickness)
 
-        self.back_plate = on_arm(
-            IdlerBackPlate()
-            .rotate(-90, [0, 1, 0])
-            .translate([-idler_radius + thickness, idler_radius,
-                        5 * thickness / 2]))
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return [self.axle, self.lower_side, self.upper_side,
-                self.lower_spacer, self.bearing, self.upper_spacer,
-                self.back_plate]
+        on_arm(self.back_plate
+               .rotate(-90, [0, 1, 0])
+               .translate([-idler_radius + thickness, idler_radius,
+                           5 * thickness / 2]))

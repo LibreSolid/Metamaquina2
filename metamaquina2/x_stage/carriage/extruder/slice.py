@@ -1,5 +1,7 @@
 """One of the five plates the extruder body is stacked from."""
 
+from solid_node.node import Count
+
 from metamaquina2.part import SheetPart
 from metamaquina2 import scad
 
@@ -11,18 +13,13 @@ class ExtruderSlice(SheetPart):
     profiles cut from the same sheet stock and stacked, so the
     filament channel, the bearing pockets and the nut traps all fall
     out of the stack.  Each slice is its own part, and the number
-    selects which profile is cut.
+    selects which profile is cut -- declared, so the range the block
+    has is a constraint rather than a hand-written check.
     """
 
     count = 5
 
-    def __init__(self, number, **kwargs):
-        if not 1 <= number <= self.count:
-            raise ValueError(
-                f'the extruder block has slices 1..{self.count}, '
-                f'not {number}')
-        self.number = number
-        super().__init__(number, **kwargs)
+    number = Count(min=1, max=count)
 
     def profile(self):
         return getattr(scad.extruder, f'slice{self.number}_face')()

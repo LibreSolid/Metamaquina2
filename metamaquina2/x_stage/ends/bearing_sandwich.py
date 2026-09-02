@@ -7,6 +7,10 @@ from metamaquina2.params import bearing_sandwich_spacing, thickness
 from metamaquina2.x_stage.ends.sandwich_plate import XEndSandwichPlate
 
 
+#: Where the four pairs of stacked spacers stand in the plate's plane.
+SPACER_HOLES = ((-14, 0), (-14, 45), (14, 0), (14, 45))
+
+
 class XEndBearingSandwich(AssemblyNode):
     """What holds the two Z bearings against the back plate.
 
@@ -15,23 +19,18 @@ class XEndBearingSandwich(AssemblyNode):
     edge: the plate faces along the beam.
     """
 
-    spacer_holes = ((-14, 0), (-14, 45), (14, 0), (14, 45))
+    spacer_holes = SPACER_HOLES
 
-    def __init__(self, *args, **kwargs):
+    spacers = DoubleM3Spacer().repeat(len(SPACER_HOLES))
+    plate = XEndSandwichPlate()
+
+    def render(self):
         def standing(node, offset):
             return (node
                     .rotate(90, [0, 0, 1])
                     .rotate(90, [0, 1, 0])
                     .translate([offset, 0, 0]))
 
-        self.spacers = [
-            standing(DoubleM3Spacer().translate([x, y, 0]), thickness)
-            for x, y in self.spacer_holes
-        ]
-        self.plate = standing(XEndSandwichPlate(),
-                              thickness + bearing_sandwich_spacing)
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return self.spacers + [self.plate]
+        for spacer, (x, y) in zip(self.spacers, self.spacer_holes):
+            standing(spacer.translate([x, y, 0]), thickness)
+        standing(self.plate, thickness + bearing_sandwich_spacing)

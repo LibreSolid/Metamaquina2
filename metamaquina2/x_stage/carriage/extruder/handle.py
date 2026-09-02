@@ -90,34 +90,14 @@ class Handle(AssemblyNode):
     drawn from.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.plate = HandlePlate()
-
-        self.bolts = []
-        self.spring_washers = []
-        self.springs = []
-
-        for side in (-1, 1):
-            across = side * HandleWidth / 6
-
-            self.bolts.append(
-                Bolt(diameter=4, length=handle_bolt_length).translate(
-                    [across, BOLT_ROW,
-                     handle_bolt_length - handle_nut_height]))
-
-            self.spring_washers.append(
-                M4Washer().translate([across, BOLT_ROW, SPRING_SEAT]))
-
-            spring = IdlerSpring()
-            self.springs.append(spring.translate(
-                [across + spring.coil_radius, BOLT_ROW,
-                 SPRING_SEAT + m4_washer_thickness
-                 + spring.wire_diameter / 2]))
-
-        super().__init__(*args, **kwargs)
+    plate = HandlePlate()
+    bolts = Bolt(diameter=4, length=handle_bolt_length).repeat(2)
+    spring_washers = M4Washer().repeat(2)
+    springs = IdlerSpring().repeat(2)
 
     def render(self):
-        """Tell each spring how long it is standing.
+        """Stand the two bolts and what rides on them, and tell each
+        spring how long it is standing.
 
         Its free length, because that is what the design draws: the
         bolt is drawn with its tension nut at the very end of the
@@ -126,8 +106,19 @@ class Handle(AssemblyNode):
         has and the design never names, and the port is where it would
         arrive.
         """
-        for spring in self.springs:
-            self.connect(spring.rise, spring.height)
+        for index, side in enumerate((-1, 1)):
+            across = side * HandleWidth / 6
 
-        return ([self.plate] + self.bolts + self.spring_washers
-                + self.springs)
+            self.bolts[index].translate(
+                [across, BOLT_ROW,
+                 handle_bolt_length - handle_nut_height])
+
+            self.spring_washers[index].translate(
+                [across, BOLT_ROW, SPRING_SEAT])
+
+            spring = self.springs[index]
+            spring.translate(
+                [across + spring.coil_radius, BOLT_ROW,
+                 SPRING_SEAT + m4_washer_thickness
+                 + spring.wire_diameter / 2])
+            self.connect(spring.rise, spring.height)

@@ -44,61 +44,70 @@ class XEndIdler(AssemblyNode):
     from `z_screw`, which is the one place that height is written down.
     """
 
-    def __init__(self, *args, **kwargs):
+    back_plate = XEndIdlerBackPlate()
+    back_joints = TSlotBolt().repeat(len(XEndIdler_back_face_TSLOTS))
+    bearing_sandwich = XEndBearingSandwich()
+    front_plate = XEndFrontPlate()
+    plain_plate = XEndIdlerPlainPlate()
+    belt_plate = XEndIdlerBeltPlate()
+    idler = XIdlerPulley()
+    zlink = ZLink()
+    nut = M8Nut()
+    bearings = LM8UU().repeat(2)
+
+    def render(self):
         def on_machine(node):
             return node.translate([machine_x_dim / 2, 0, 0])
 
-        self.back_plate = on_machine(
-            XEndIdlerBackPlate()
+        on_machine(
+            self.back_plate
             .rotate(90, [0, 0, 1])
             .rotate(90, [0, 1, 0])
             .translate([-thickness, 0, 0]))
-        self.back_joints = [
+        for bolt, (x, y, width, angle) in zip(self.back_joints,
+                                              XEndIdler_back_face_TSLOTS):
             on_machine(
-                TSlotBolt()
+                bolt
                 .translate([0, width / 2, 0])
                 .rotate(angle, [0, 0, 1])
                 .translate([x, y, 0])
                 .rotate(90, [0, 0, 1])
                 .rotate(90, [0, 1, 0])
                 .translate([-thickness, 0, 0]))
-            for x, y, width, angle in XEndIdler_back_face_TSLOTS
-        ]
 
-        self.bearing_sandwich = on_machine(
-            XEndBearingSandwich().rotate(180, [0, 0, 1]))
+        on_machine(self.bearing_sandwich.rotate(180, [0, 0, 1]))
 
-        self.front_plate = on_machine(
-            XEndFrontPlate()
+        on_machine(
+            self.front_plate
             .rotate(-90, [0, 0, 1])
             .rotate(-90, [0, 1, 0])
             .translate([-XEnd_box_size - thickness, 0, 0]))
 
-        self.plain_plate = on_machine(
-            XEndIdlerPlainPlate()
+        on_machine(
+            self.plain_plate
             .rotate(90, [1, 0, 0])
             .translate([-thickness - XEnd_box_size,
                         -XPlatform_width / 2 + 1.5 * thickness,
                         thickness]))
 
-        self.belt_plate = on_machine(
-            XEndIdlerBeltPlate()
+        on_machine(
+            self.belt_plate
             .rotate(90, [1, 0, 0])
             .translate([-thickness - XEnd_box_size,
                         XPlatform_width / 2 + XEnd_extra_width
                         - 0.5 * thickness,
                         thickness]))
 
-        self.idler = on_machine(
-            XIdlerPulley()
+        on_machine(
+            self.idler
             .rotate(90, [1, 0, 0])
             .translate([-XEnd_box_size / 2 - thickness,
                         XPlatform_width / 2 + XEnd_extra_width
                         - 2.5 * thickness,
                         XIdler_height]))
 
-        self.zlink = on_machine(
-            ZLink()
+        on_machine(
+            self.zlink
             .rotate(-90, [1, 0, 0])
             .rotate(-90, [0, 0, 1])
             .translate([-thickness - lm8uu_diameter / 2 - z_rod_z_bar_distance
@@ -106,25 +115,15 @@ class XEndIdler(AssemblyNode):
                         0,
                         thickness + Zlink_hole_height]))
 
-        self.nut = on_machine(
-            M8Nut().translate(
+        on_machine(
+            self.nut.translate(
                 [-(thickness + lm8uu_diameter / 2 + z_rod_z_bar_distance),
                  0, NUT_SEAT]))
 
-        self.bearings = [
+        for bearing, end in zip(self.bearings, (-1, 1)):
             on_machine(
-                LM8UU()
+                bearing
                 .rotate(90, [1, 0, 0])
                 .translate([-(thickness + lm8uu_diameter / 2), 0,
-                            XPlatform_height / 2 + end * XPlatform_height / 2]))
-            for end in (-1, 1)
-        ]
-
-        super().__init__(*args, **kwargs)
-
-    def render(self):
-        return ([self.back_plate] + self.back_joints
-                + [self.bearing_sandwich, self.front_plate,
-                   self.plain_plate, self.belt_plate, self.idler,
-                   self.zlink, self.nut]
-                + self.bearings)
+                            XPlatform_height / 2
+                            + end * XPlatform_height / 2]))

@@ -1,6 +1,6 @@
 """An X belt clamp and the bolts that tighten it."""
 
-from solid_node.node import AssemblyNode
+from solid_node.node import AssemblyNode, Flag
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_washer import M3Washer
@@ -21,29 +21,23 @@ class XBeltClamp(AssemblyNode):
     bolt_offset = 9
     bolt_length = 20
 
-    def __init__(self, flipped=False, **kwargs):
-        self.flipped = flipped
+    flipped = Flag(False)
 
-        plate = XBeltClampPlate()
-        if flipped:
-            plate.rotate(180, [1, 0, 0]).translate(
-                [0, 0, XBeltClampPlate.clamp_thickness])
-        self.plate = plate
-
-        self.washers = []
-        self.bolts = []
-        for side in (-1, 1):
-            self.washers.append(
-                M3Washer()
-                .translate([side * self.bolt_offset, 0, 0])
-                .rotate(180, [1, 0, 0]))
-            self.bolts.append(
-                Bolt(diameter=3, length=self.bolt_length)
-                .translate([0, 0, m3_washer_thickness])
-                .translate([side * self.bolt_offset, 0, 0])
-                .rotate(180, [1, 0, 0]))
-
-        super().__init__(flipped, **kwargs)
+    plate = XBeltClampPlate()
+    washers = M3Washer().repeat(2)
+    bolts = Bolt(diameter=3, length=bolt_length).repeat(2)
 
     def render(self):
-        return [self.plate] + self.washers + self.bolts
+        if self.flipped:
+            (self.plate
+             .rotate(180, [1, 0, 0])
+             .translate([0, 0, XBeltClampPlate.clamp_thickness]))
+
+        for index, side in enumerate((-1, 1)):
+            (self.washers[index]
+             .translate([side * self.bolt_offset, 0, 0])
+             .rotate(180, [1, 0, 0]))
+            (self.bolts[index]
+             .translate([0, 0, m3_washer_thickness])
+             .translate([side * self.bolt_offset, 0, 0])
+             .rotate(180, [1, 0, 0]))
