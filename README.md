@@ -42,16 +42,24 @@ and the parts the design buys and never drew.
     solid build metamaquina2/metamaquina2.py    # build the machine
     solid develop metamaquina2/metamaquina2.py  # watch and serve it
 
-Each node declares its parameters, so the one the machine itself
+Each node declares its parameters, so the two the machine itself
 declares can be set from the shell on any of those commands:
 
     solid build metamaquina2/metamaquina2.py --set spool_holder_offset=500
+    solid build metamaquina2/metamaquina2.py --set power_supply_fitted=false
 
 `spool_holder_offset` is how far beside the machine the filament stand
 sits, along the machine's own x -- the one placement here that this
 layer chooses rather than reads out of the design. Moving it moves the
 reel and the free run of filament is drawn again from wherever it
 lands.
+
+`power_supply_fitted` is whether this machine is built with its power
+supply in it, and it is the one part of the machine that is fitted or
+not. It defaults to the brick the design configures, so the machine
+that builds is the machine that has always been drawn; turn it off and
+the supply, its box and its bolts are left out -- a different mass and
+a shorter bill of materials, not a hole in the render.
 
 Everything else the machine is dimensioned by comes from the OpenSCAD
 sources themselves, evaluated once at import (`metamaquina2/params.py`),

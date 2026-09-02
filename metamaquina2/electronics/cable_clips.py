@@ -30,18 +30,6 @@ def _over(clip, entry):
             .translate([x, y, thickness]))
 
 
-def _clips(table):
-    """One clip declaration per entry of a panel's table.
-
-    A module-level helper rather than a comprehension written in the
-    class body: a comprehension there is inlined into the body's own
-    frame with a plain dict for its locals, so the framework cannot
-    see that a class body is executing and builds shared node
-    instances instead of declarations.
-    """
-    return [CableClip(kind) for kind, _angle, _x, _y in table]
-
-
 class CableClips(AssemblyNode):
     """The clips that route the loom around the machine.
 
@@ -50,15 +38,20 @@ class CableClips(AssemblyNode):
     panel's frame.  The right panel's clips sit on the outer face; the
     rest hang under theirs.
 
-    The three sizes are three different parts, so each table becomes a
-    literal list of the clips it names rather than one repeated
+    The three sizes are three different parts, so each table becomes
+    an enumerated list -- one clip declared per entry, read straight
+    off the design's own table -- rather than one repeated
     declaration.
     """
 
-    left = _clips(left_cable_clips)
-    right = _clips(right_cable_clips)
-    top = _clips(top_cable_clips)
-    bottom = _clips(bottom_cable_clips)
+    left = [CableClip(kind)
+            for kind, _angle, _x, _y in left_cable_clips]
+    right = [CableClip(kind)
+             for kind, _angle, _x, _y in right_cable_clips]
+    top = [CableClip(kind)
+           for kind, _angle, _x, _y in top_cable_clips]
+    bottom = [CableClip(kind)
+              for kind, _angle, _x, _y in bottom_cable_clips]
 
     def render(self):
         for clip, entry in zip(self.left, left_cable_clips):

@@ -174,7 +174,7 @@ come from is in `params.py`, and how a part is authored is in
 `part.py`.
 """
 
-from solid_node.node import AssemblyNode, Length
+from solid_node.node import AssemblyNode, Flag, Length
 from solid_node.simulation import Driver, Instruction
 
 from metamaquina2 import filament as filament_module, z_screw
@@ -186,6 +186,7 @@ from metamaquina2.params import (
     BuildVolume_X,
     BuildVolume_Y,
     BuildVolume_Z,
+    HIQUA_POWERSUPPLY,
     XCarPosition,
     XZStage_offset,
     YCarPosition,
@@ -282,6 +283,17 @@ class Metamaquina2(AssemblyNode):
     #: `--set spool_holder_offset=500`.
     spool_holder_offset = Length(400.0)
 
+    #: Whether this machine is built with its power supply in it.
+    #:
+    #: The one part of this machine that is fitted or not, and the
+    #: knob belongs here rather than on the electronics because it is
+    #: the machine a maker is asking for: the design configures the
+    #: brick with `HIQUA_POWERSUPPLY`, and one built without it has a
+    #: different mass and a shorter bill of materials.  Declared here
+    #: and handed down, so `--set power_supply_fitted=false` reaches
+    #: it from the shell.
+    power_supply_fitted = Flag(HIQUA_POWERSUPPLY)
+
     x = Driver(default=XCarPosition, unit='mm',
                range=(-BuildVolume_X / 2, BuildVolume_X / 2))
     y = Driver(default=YCarPosition, unit='mm',
@@ -313,12 +325,7 @@ class Metamaquina2(AssemblyNode):
     y_axis = YAxis()
     x_stage = XStage()
 
-    #: The power supply's own flag stays on the electronics, where the
-    #: part it gates lives: a Flag cannot be passed from a parent to a
-    #: child -- the framework refuses the token where it resolves a
-    #: Length or a Count -- so the machine cannot hold that knob and
-    #: `--set` cannot reach it.  Recorded rather than worked around.
-    electronics = Electronics()
+    electronics = Electronics(power_supply_fitted=power_supply_fitted)
 
     spool_holder = SpoolHolder()
     filament = Filament()
