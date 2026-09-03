@@ -95,9 +95,7 @@ class XCarriage(AssemblyNode):
     belt_clamps = [XBeltClamp(flipped=False), XBeltClamp(flipped=True)]
     bearings = LM8UU().repeat(4)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         deck = XCarriage_height
         bearing_reach = XCarriage_lm8uu_distance / 2
 

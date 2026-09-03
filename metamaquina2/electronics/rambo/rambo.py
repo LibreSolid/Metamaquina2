@@ -47,9 +47,7 @@ class Rambo(AssemblyNode):
     connector = PsuConnector()
     cover = RamboCover()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         board_deck = 2 * thickness
         cover_deck = board_deck + RAMBo_pcb_thickness
 

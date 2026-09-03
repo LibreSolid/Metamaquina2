@@ -41,9 +41,7 @@ class HotEnd(AssemblyNode):
     resistor = HeaterResistor()
     thermistor = Thermistor()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         block = jhead.FOOT - jhead.BLOCK_HEIGHT
 
         self.liner.translate([0, 0, jhead.INSTALLATION])

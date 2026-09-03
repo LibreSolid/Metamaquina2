@@ -11,9 +11,7 @@ class YRods(AssemblyNode):
 
     rods = SmoothRod(length=Y_rod_length).repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         for rod, side in zip(self.rods, (-1, 1)):
             (rod
              .rotate(-90, [1, 0, 0])

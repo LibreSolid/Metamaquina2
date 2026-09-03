@@ -32,9 +32,7 @@ class Nema17Mount(AssemblyNode):
                 for x in (-self.hole_distance, self.hole_distance)
                 for y in (-self.hole_distance, self.hole_distance)]
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         offset = -thickness - m3_washer_thickness
         for corner, (x, y) in enumerate(self.holes()):
             self.washers[corner].translate([x, y, offset])

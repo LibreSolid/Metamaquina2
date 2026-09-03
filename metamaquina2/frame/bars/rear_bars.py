@@ -37,9 +37,7 @@ class RearBars(AssemblyNode):
     lower_caps = NutCap().repeat(2)
     lower_idler = BeltIdler(spaced=True)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         rear = RightPanel_basewidth / 2 - bar_cut_length
         upper_z = base_bars_Zdistance + base_bars_height
 

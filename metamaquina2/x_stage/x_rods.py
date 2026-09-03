@@ -16,9 +16,7 @@ class XRods(AssemblyNode):
 
     rods = SmoothRod(length=X_rod_length).repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         for rod, side in zip(self.rods, (-1, 1)):
             (rod
              .translate([0, 0, -X_rod_length / 2])

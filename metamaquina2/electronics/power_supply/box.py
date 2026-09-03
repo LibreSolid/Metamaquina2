@@ -34,9 +34,7 @@ class PowerSupplyBox(AssemblyNode):
     back = PowerSupplyBoxPlate('back')
     inlet = FemaleConnector()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         base = -PowerSupplyBox_height + PowerSupply_bottom_offset
 
         self.side.translate(

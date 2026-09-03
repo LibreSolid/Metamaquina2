@@ -16,8 +16,6 @@ class ExtruderBlock(AssemblyNode):
     slices = [ExtruderSlice(number=number)
               for number in range(1, ExtruderSlice.count + 1)]
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         for number, slice_ in enumerate(self.slices, start=1):
             slice_.translate([0, 0, (number - 1) * thickness])

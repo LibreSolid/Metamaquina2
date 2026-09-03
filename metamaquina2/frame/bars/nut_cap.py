@@ -22,9 +22,7 @@ class NutCap(AssemblyNode):
     inner_washer = M8Washer()
     inner_nut = M8Nut()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         def place(node, offset, outward):
             node.translate([0, 0, thickness / 2 + offset])
             if not outward:

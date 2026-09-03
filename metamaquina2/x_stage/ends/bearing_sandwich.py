@@ -24,9 +24,7 @@ class XEndBearingSandwich(AssemblyNode):
     spacers = DoubleM3Spacer().repeat(len(SPACER_HOLES))
     plate = XEndSandwichPlate()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         def standing(node, offset):
             return (node
                     .rotate(90, [0, 0, 1])

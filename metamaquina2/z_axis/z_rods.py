@@ -22,9 +22,7 @@ class ZRods(AssemblyNode):
 
     rods = SmoothRod(length=Z_rod_length).repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         offset = machine_x_dim / 2 - thickness - lm8uu_diameter / 2
         for rod, side in zip(self.rods, (-1, 1)):
             rod.translate(

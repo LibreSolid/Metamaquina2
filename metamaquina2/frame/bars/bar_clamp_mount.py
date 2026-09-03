@@ -21,9 +21,7 @@ class BarClampMount(AssemblyNode):
     far_nut = M8Nut()
     clamp = BarClamp()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         def place(node, offset, forward):
             node.translate([0, 0, barclamp_thickness / 2 + offset])
             if not forward:

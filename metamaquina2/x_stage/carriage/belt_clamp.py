@@ -29,9 +29,7 @@ class XBeltClamp(AssemblyNode):
     washers = M3Washer().repeat(2)
     bolts = Bolt(diameter=3, length=bolt_length).repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         if self.flipped:
             (self.plate
              .rotate(180, [1, 0, 0])

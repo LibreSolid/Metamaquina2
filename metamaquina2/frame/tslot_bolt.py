@@ -32,9 +32,7 @@ class TSlotBolt(AssemblyNode):
     bolt = Bolt(diameter=3.0, length=length)
     nut = M3Nut()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         def place(node, z):
             if self.flipped:
                 node.rotate(180, [1, 0, 0])

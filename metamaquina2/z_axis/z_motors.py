@@ -20,9 +20,7 @@ class ZMotors(AssemblyNode):
 
     motors = Nema17Mount().repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         offset = Z_rods_distance / 2 - z_rod_z_bar_distance
         for motor, side in zip(self.motors, (1, -1)):
             (motor

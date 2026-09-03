@@ -23,8 +23,6 @@ class HeatedBed(AssemblyNode):
     pcb = HeatedBedPcb()
     glass = HeatedBedGlass()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         self.glass.translate(
             [-glass_w / 2, -glass_h / 2, heated_bed_pcb_thickness])

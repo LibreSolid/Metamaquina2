@@ -31,9 +31,7 @@ class RodEnds(AssemblyNode):
     bottom_left = RodEndBottom()
     bottom_right = RodEndBottom()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         left = -Z_rods_distance / 2
         right = Z_rods_distance / 2
 

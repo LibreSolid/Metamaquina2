@@ -35,9 +35,7 @@ class Endstops(AssemblyNode):
     y_max = YEndstop('max')
     y_min = YEndstop('min')
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         frames.left_panel(
             self.z_max
             .rotate(180, [0, 0, 1])
