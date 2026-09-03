@@ -38,6 +38,19 @@ design's -- the nodes call its modules and read its dimensions -- and
 what the tree adds is where every part goes, the three axes as drivers,
 and the parts the design buys and never drew.
 
+A printer is mostly a thing that does not move, and the tree says which
+half is which. Each assembly's `render()` builds it at rest: it holds
+the structure, whether the power supply is fitted at all, and the
+placement of every part a builder bolts down and leaves -- the frame,
+the panels, the fasteners, the boxes at both ends of the beam, the reel
+stand. It reads no driver, so it is run once. What follows a driver is
+in `simulate()`, which runs on every instant and is the only place the
+three axes are read: the carriage along its beam, the bed on its rods,
+the two screws and the couplings turning on them, the two pulleys the
+belts are meshed on, and the shape the free run of filament is dragged
+into. Motion composes inside the rest placement, which is why a screw
+can spin about its own axis and still stand where it is held.
+
     solid test metamaquina2/metamaquina2.py     # the contracts
     solid build metamaquina2/metamaquina2.py    # build the machine
     solid develop metamaquina2/metamaquina2.py  # watch and serve it
