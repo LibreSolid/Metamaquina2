@@ -46,15 +46,13 @@ class BedLevelScrew(AssemblyNode):
     nut_washer = M3Washer()
     nut = M3Nut()
 
-    def __init__(self, **kwargs):
+    def render(self):
         """Stand the stack.
 
         Nothing in it moves: the bed is levelled with a screwdriver,
         which the machine has no state for, so every part of the
-        sandwich is placed once.
+        sandwich is placed at rest.
         """
-        super().__init__(**kwargs)
-
         self.spring.translate(
             [self.spring.coil_radius, 0, self.spring.wire_diameter / 2])
 
@@ -74,7 +72,7 @@ class BedLevelScrew(AssemblyNode):
         self.nut_washer.translate([0, 0, nut_seat])
         self.nut.translate([0, 0, nut_seat - m3_nut_height])
 
-    def render(self):
+    def simulate(self):
         """Tell the spring how much room it has been left.
 
         A constant today, and deliberately: the length is derived from

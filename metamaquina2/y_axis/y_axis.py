@@ -58,21 +58,19 @@ class YAxis(AssemblyNode):
     belt = YBelt()
     motor = YMotor()
 
-    def __init__(self, **kwargs):
+    def render(self):
         """Stand the belt loop where its idlers and its pulley hold it.
 
         The loop does not go anywhere -- both its ends are bolted under
-        the platform -- so where it stands in the machine is said once.
-        What travels inside it is told to it every render, as a port.
+        the platform -- so where it stands in the machine is said here.
+        What travels inside it is told to it every instant, as a port.
         """
-        super().__init__(**kwargs)
-
         (self.belt
          .rotate(90, [1, 0, 0])
          .rotate(-90, [0, 0, 1])
          .translate(self.belt_position))
 
-    def render(self):
+    def simulate(self):
         """Stand the bed where the machine put it, tell the belt where
         it is being held, and turn the pulley to meet it.
 

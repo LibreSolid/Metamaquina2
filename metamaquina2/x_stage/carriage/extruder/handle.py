@@ -95,15 +95,13 @@ class Handle(AssemblyNode):
     spring_washers = M4Washer().repeat(2)
     springs = IdlerSpring().repeat(2)
 
-    def __init__(self, **kwargs):
+    def render(self):
         """Stand the two bolts and what rides on them.
 
         Nothing here is placed by a driver -- the lever is squeezed by
         hand and the machine has no state for it -- so the stack is
-        stood once, here, and never re-placed.
+        stood at rest and never moved.
         """
-        super().__init__(**kwargs)
-
         for index, side in enumerate((-1, 1)):
             across = side * HandleWidth / 6
 
@@ -120,7 +118,7 @@ class Handle(AssemblyNode):
                  SPRING_SEAT + m4_washer_thickness
                  + spring.wire_diameter / 2])
 
-    def render(self):
+    def simulate(self):
         """Tell each spring how long it is standing.
 
         Its free length, because that is what the design draws: the

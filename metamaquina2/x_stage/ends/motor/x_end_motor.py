@@ -60,9 +60,7 @@ class XEndMotor(AssemblyNode):
     nut = M8Nut()
     bearings = LM8UU().repeat(2)
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
+    def render(self):
         def on_machine(node):
             return node.translate([-machine_x_dim / 2, 0, 0])
 
@@ -122,11 +120,11 @@ class XEndMotor(AssemblyNode):
                             XPlatform_height / 2
                             + end * XPlatform_height / 2]))
 
-    def render(self):
+    def simulate(self):
         """Hand the pulley's phase on to the box that holds it.
 
         Nothing in this box moves -- the beam carries the whole of it
-        -- so every plate, bolt and bearing is placed once, and what
-        is left each render is the one wire.
+        -- so `render` stands every plate, bolt and bearing, and the
+        one wire is all there is to say per instant.
         """
         self.connect(self.shaft, self.belt_side.shaft)

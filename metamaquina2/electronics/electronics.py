@@ -39,9 +39,15 @@ class Electronics(AssemblyNode):
     cable_clips = CableClips()
     power_supply = PowerSupply()
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def render(self):
+        """Fit the controller and, on a machine that has one, the
+        supply.
 
+        Nothing here moves, so the whole of it is the machine at rest:
+        where each part goes, and whether the supply is there at all.
+        Presence belongs here and nowhere else -- structure is decided
+        at rest, and `simulate` may not omit.
+        """
         frames.left_panel(
             self.rambo.translate([RAMBo_x, RAMBo_y, thickness]))
 
@@ -51,14 +57,5 @@ class Electronics(AssemblyNode):
                 .rotate(180, [0, 1, 0])
                 .translate([powersupply_Xposition,
                             powersupply_Yposition, 0]))
-
-    def render(self):
-        """Leave the supply out of a machine built without one.
-
-        Nothing here moves, so where each part goes is said once in
-        `__init__`; what is left is the one thing that is decided
-        afresh every render, because the framework clears the mark
-        before it runs.
-        """
-        if not self.power_supply_fitted:
+        else:
             self.power_supply.omit()

@@ -79,31 +79,34 @@ class YMotor(AssemblyNode):
                             .translate([ACROSS, -ALONG, -DEPTH])
                             .rotate(180, [1, 0, 0]))
 
-    def __init__(self, **kwargs):
-        """Stand the plate and bolt the motor into it.
+    def render(self):
+        """Stand the plate, bolt the motor into it, and put the pulley
+        in the belt's own plane on the shaft.
 
-        Neither goes anywhere: the holder is bolted to the rear bars
-        and the motor to the holder, so they are stood once.
+        Nothing here goes anywhere: the holder is bolted to the rear
+        bars, the motor to the holder, and the pulley is bored onto a
+        shaft that does not travel.
+
+        The pulley's two rotations are the belt's own placement, so its
+        local x lands on the loop's x and its axis on the loop's width:
+        a groove drawn on the part's +X is then a groove at nought
+        degrees of the plane `y_belt` measures its angles in.  All
+        three of these stand it; what turns it is `simulate`.
         """
-        super().__init__(**kwargs)
-
         self.mounted(self.holder)
         self.on_motor(self.motor)
 
-    def render(self):
-        """Turn the pulley to where the belt's teeth are, and put it in
-        the belt's own plane on the shaft.
-
-        The two rotations are the belt's own placement, so the pulley's
-        local x lands on the loop's x and its axis on the loop's width:
-        a groove drawn on the part's +X is then a groove at nought
-        degrees of the plane `y_belt` measures its angles in.  The turn
-        goes on before them, so it turns the pulley about its own axis
-        rather than swinging it around the machine.  All four stay
-        here, because the first of them follows the axis.
-        """
-        self.pulley.rotate(self.shaft.value, [0, 0, 1])
         self.pulley.rotate(90, [1, 0, 0])
         self.pulley.rotate(-90, [0, 0, 1])
         self.pulley.translate([belt_width / 2 - self.pulley_offset,
                                SHAFT[0], SHAFT[1]])
+
+    def simulate(self):
+        """Turn the pulley to where the belt's teeth are.
+
+        Motion composes innermost, so this turn goes on before the
+        three operations that stand the pulley: it turns about the
+        pulley's own axis and is then carried to the shaft, rather
+        than swinging the pulley around the machine.
+        """
+        self.pulley.rotate(self.shaft.value, [0, 0, 1])

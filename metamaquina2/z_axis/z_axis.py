@@ -23,7 +23,8 @@ class ZAxis(AssemblyNode):
     turn with its rotor, and a rod the stage slides on never did.
 
     Nothing here is placed: each of the four stands in the machine's
-    own frame already, so `render` only wires the screw angle through.
+    own frame already, so there is nothing for `render` to do, and
+    `simulate` only wires the screw angle through.
     """
 
     screw = RotationalPort(unit='deg')
@@ -33,6 +34,6 @@ class ZAxis(AssemblyNode):
     bars = ZBars()
     rods = ZRods()
 
-    def render(self):
+    def simulate(self):
         self.connect(self.screw, self.bars.angle)
         self.connect(self.screw, self.couplings.angle)

@@ -34,10 +34,13 @@ class ZBars(AssemblyNode):
     turning the same way, and a machine whose bars disagreed would rack
     its own beam.
 
-    The turn is applied before the placement so a bar spins about its
-    own axis rather than swinging around the middle of the machine, and
-    both are applied in `render` so that re-drawing at a new height
-    replaces them rather than piling onto them.
+    Where a bar stands never changes -- it is held between the motor
+    below it and the top of the machine -- so `render` stands the two
+    of them once, and the turn is all that is left to `simulate`.  A
+    turn applied there goes on before the placement, which is what a
+    bar spinning about its own axis rather than swinging around the
+    middle of the machine needs, and it is stated absolutely for its
+    instant, so a new height replaces it rather than piling onto it.
     """
 
     angle = RotationalPort(unit='deg')
@@ -50,5 +53,8 @@ class ZBars(AssemblyNode):
 
     def render(self):
         for side, bar in zip((-1, 1), self.bars):
-            bar.rotate(self.angle.value, [0, 0, 1])
             bar.translate([side * self.offset, -XZStage_offset, BAR_BASE])
+
+    def simulate(self):
+        for bar in self.bars:
+            bar.rotate(self.angle.value, [0, 0, 1])

@@ -89,15 +89,13 @@ class XStage(AssemblyNode):
     rods = XRods()
     belt = XBelt()
 
-    def __init__(self, **kwargs):
+    def render(self):
         """Stand the belt loop where its idlers and its pulley hold it.
 
         The loop does not go anywhere -- both its ends are bolted down
-        -- so where it stands in this frame is said once.  What travels
-        inside it is told to it every render, as a port.
+        -- so where it stands in this frame is said here.  What travels
+        inside it is told to it every instant, as a port.
         """
-        super().__init__(**kwargs)
-
         (self.belt
          .rotate(90, [1, 0, 0])
          .translate([0,
@@ -105,7 +103,7 @@ class XStage(AssemblyNode):
                      - belt_offset + thickness,
                      0]))
 
-    def render(self):
+    def simulate(self):
         """Slide the carriage to where the machine put it, tell the belt
         where it is being held, and turn the pulley to meet it.
 

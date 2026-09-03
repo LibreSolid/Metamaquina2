@@ -28,6 +28,10 @@ class ZCouplings(AssemblyNode):
     coupling.  `angle` is the bar's own, relayed by the axis; there is
     nothing for this assembly to derive from it, because a clamped
     joint has no ratio.
+
+    Where each coupling sits is fixed by the shaft and the bar it
+    clamps, so `render` seats the two of them once and `simulate` only
+    turns them.
     """
 
     angle = RotationalPort(unit='deg')
@@ -41,6 +45,9 @@ class ZCouplings(AssemblyNode):
 
     def render(self):
         for side, coupling in zip((-1, 1), self.couplings):
-            coupling.rotate(self.angle.value, [0, 0, 1])
             coupling.translate(
                 [side * self.offset, -XZStage_offset, self.height])
+
+    def simulate(self):
+        for coupling in self.couplings:
+            coupling.rotate(self.angle.value, [0, 0, 1])

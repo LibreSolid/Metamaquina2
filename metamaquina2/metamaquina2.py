@@ -353,18 +353,20 @@ class Metamaquina2(AssemblyNode):
         return [reel[axis] + filament_module.OFFSET[axis]
                 for axis in range(3)]
 
-    def __init__(self, **kwargs):
+    def render(self):
         """Stand the reel beside the machine and hang the stock on it.
 
-        Neither goes anywhere.  The stand is a separate piece of
-        furniture and does not move when the machine does, and the
-        strand's own frame is the stand's, so both are placed once,
+        This is the whole of the machine at rest that this class has to
+        say: everything else it holds stands itself, and the three
+        drivers are `simulate`'s.
+
+        Neither of these two goes anywhere.  The stand is a separate
+        piece of furniture and does not move when the machine does, and
+        the strand's own frame is the stand's, so both are placed here,
         from wherever `spool_holder_offset` puts the stand.  What
         follows the machine is the shape of the free run, and that is
-        told to it every render through its ports.
+        told to it every instant through its ports.
         """
-        super().__init__(**kwargs)
-
         (self.spool_holder
          .rotate(90, [0, 0, 1])
          .translate(self.spool_holder_position))
@@ -373,8 +375,8 @@ class Metamaquina2(AssemblyNode):
          .rotate(*filament_module.PLACEMENT)
          .translate(self.strand_origin))
 
-    def render(self):
-        """Place what the drivers move, then hand over the children.
+    def simulate(self):
+        """Move what the drivers move.
 
         X and Y are relayed into the axis that owns the moving frame,
         because the carriage and the bed are placed inside their own
