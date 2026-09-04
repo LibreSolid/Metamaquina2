@@ -1,6 +1,7 @@
 """The bolt, washer and nut that close one t-slot joint."""
 
-from solid_node.node import AssemblyNode, Flag, Length
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Flag, Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_nut import M3Nut

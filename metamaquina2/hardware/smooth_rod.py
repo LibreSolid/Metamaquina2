@@ -1,6 +1,6 @@
 """A length of ground smooth rod."""
 
-from solid_node.node import Length
+from solid_node.parameters import Length
 
 from metamaquina2 import materials
 from metamaquina2.part import ScadPart, curve

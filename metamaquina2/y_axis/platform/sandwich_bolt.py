@@ -1,6 +1,7 @@
 """The washer and bolt that pull a bearing sandwich together."""
 
-from solid_node.node import AssemblyNode, Length
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_washer import M3Washer

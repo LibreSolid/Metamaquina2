@@ -1,6 +1,6 @@
 """A reel of filament."""
 
-from solid_node.node import Length
+from solid_node.parameters import Length
 
 from metamaquina2 import materials
 from metamaquina2.params import (

@@ -174,7 +174,8 @@ come from is in `params.py`, and how a part is authored is in
 `part.py`.
 """
 
-from solid_node.node import AssemblyNode, Flag, Length
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Flag, Length
 from solid_node.simulation import Driver, Instruction
 
 from metamaquina2 import filament as filament_module, z_screw

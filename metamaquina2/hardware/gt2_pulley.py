@@ -3,7 +3,7 @@
 import math
 
 from solid2 import polygon
-from solid_node.node import Count, Length
+from solid_node.parameters import Count, Length
 
 from metamaquina2 import gt2, materials
 from metamaquina2.params import motor_shaft_diameter

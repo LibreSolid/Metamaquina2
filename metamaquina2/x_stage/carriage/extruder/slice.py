@@ -1,6 +1,6 @@
 """One of the five plates the extruder body is stacked from."""
 
-from solid_node.node import Count
+from solid_node.parameters import Count
 
 from metamaquina2.part import SheetPart
 from metamaquina2 import scad

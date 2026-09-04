@@ -1,6 +1,6 @@
 """The short smooth rod the extruder idler bearing turns on."""
 
-from solid_node.node import Length
+from solid_node.parameters import Length
 
 from metamaquina2.hardware.smooth_rod import SmoothRod
 

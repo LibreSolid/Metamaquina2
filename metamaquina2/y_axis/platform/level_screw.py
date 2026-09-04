@@ -1,6 +1,7 @@
 """One corner of the heated bed's levelling."""
 
-from solid_node.node import AssemblyNode, Length
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Length
 
 from metamaquina2.hardware.bolt import Bolt
 from metamaquina2.hardware.m3_nut import M3Nut

@@ -1,6 +1,6 @@
 """The big printed gear on the hobbed bolt."""
 
-from solid_node.node import Count
+from solid_node.parameters import Count
 
 from metamaquina2 import materials
 from metamaquina2.part import ScadPart

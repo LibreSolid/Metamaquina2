@@ -1,6 +1,7 @@
 """The lasercut extruder."""
 
-from solid_node.node import AssemblyNode, Length
+from solid_node.node import AssemblyNode
+from solid_node.parameters import Length
 
 from metamaquina2.hardware.bearing_608zz import Bearing608zz
 from metamaquina2.hardware.bolt import Bolt
