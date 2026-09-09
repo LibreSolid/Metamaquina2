@@ -164,3 +164,8 @@ Do these in order; each step leaves the model importable, so run
   (keep `shaft` ports, no joint range, standalone-build docstrings
   corrected rather than a rest-default guard added) and required no
   code beyond what stage B already does.
+
+## Review (orchestrator, 2026-09-09)
+
+Diff matches the reviewed proposal; poses bit-identical over 18 poses
+and 452 leaves; 67/67 green before and after. Archived.
