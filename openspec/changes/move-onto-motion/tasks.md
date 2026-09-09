@@ -70,41 +70,41 @@ report the assertion and why.
 Do these in order; each step leaves the model importable, so run
 `python -c "import metamaquina2.metamaquina2"` after each.
 
-- [ ] 2.1 **The three belt constants per axis.** In
+- [x] 2.1 **The three belt constants per axis.** In
       `x_stage/x_belt.py`, after `pulley_angle()`, add `PITCH_ARC`,
       `BEAM_PER_DEGREE` and `PULLEY_AT_ORIGIN` exactly as the proposal
       writes them. In `y_axis/y_belt.py`, the same with
       `BED_PER_DEGREE`. `pulley_angle()` itself keeps its body: the
       phase is that function evaluated at `CLAMP_ORIGIN`. Change no
       other number.
-- [ ] 2.2 **The X stage's rest stand.** Add `STAGE_REST` to
+- [x] 2.2 **The X stage's rest stand.** Add `STAGE_REST` to
       `metamaquina2.py`, place `x_stage` from it in
       `Metamaquina2.render()`, and read `stage` off it in
       `simulate()` for the filament paragraph.
-- [ ] 2.3 **The three prismatics.** `XStage.lift`, `XCarriage.travel`,
+- [x] 2.3 **The three prismatics.** `XStage.lift`, `XCarriage.travel`,
       `YPlatform.slide`, with axis and unit as proposed and NO `range`.
       Import `Prismatic` from `solid_node.motion.joints`.
-- [ ] 2.4 **The two pulley subclasses and their wirings.** `XPulley` in
+- [x] 2.4 **The two pulley subclasses and their wirings.** `XPulley` in
       `belt_side.py` and `YPulley` in `y_motor.py`, each three lines
       carrying one `Revolute` with the axis and anchor the proposal
       derives; then `pulley = XPulley(period=PERIOD, spin=shaft)` and
       `pulley = YPulley(period=PERIOD, spin=shaft)`. Delete
       `XEndMotorBeltSide.simulate()` and `YMotor.simulate()`. Keep both
       `shaft` ports: two contracts read them.
-- [ ] 2.5 **The five root relations**, in `Metamaquina2`'s class body,
+- [x] 2.5 **The five root relations**, in `Metamaquina2`'s class body,
       replacing the `x_stage.translate` and the three `connect`s into
       `carriage_position`, `platform_position` and `screw`. Leave the
       five filament `connect`s exactly as they are.
-- [ ] 2.6 **The four axis relations**, two in `XStage`'s body and two in
+- [x] 2.6 **The four axis relations**, two in `XStage`'s body and two in
       `YAxis`'s body, and delete both `simulate()` methods.
-- [ ] 2.7 **The four forwarders.** Remove `XStage.carriage_position`,
+- [x] 2.7 **The four forwarders.** Remove `XStage.carriage_position`,
       `YAxis.platform_position`, `ZAxis.screw` (and `ZAxis.simulate()`),
       and `XEndMotor.shaft` (and `XEndMotor.simulate()`).
-- [ ] 2.8 **Nothing else.** `ZBars`, `ZCouplings`, `Handle` and
+- [x] 2.8 **Nothing else.** `ZBars`, `ZCouplings`, `Handle` and
       `BedLevelScrew` keep their ports and their `simulate()` loops
       (Known gaps 1). No joint for the idlers, no `e` driver, no motion
       the model does not have today.
-- [ ] 2.9 Correct the docstrings the change makes untrue: `XStage`,
+- [x] 2.9 Correct the docstrings the change makes untrue: `XStage`,
       `YAxis` and `ZAxis` on "this assembly no longer builds on its own",
       `XEndMotorBeltSide` and `YMotor` on which frame the turn is
       applied in, `XEndMotor` on relaying the shaft, and the README's
@@ -113,27 +113,54 @@ Do these in order; each step leaves the model importable, so run
 
 ## 3. Evidence
 
-- [ ] 3.1 Re-capture poses to `/tmp/metamaquina2-after.json` with the
+- [x] 3.1 Re-capture poses to `/tmp/metamaquina2-after.json` with the
       same extra pose file, and run
       `capture_poses.py compare /tmp/metamaquina2-before.json /tmp/metamaquina2-after.json`.
       Expected maximum deviation 0 on every leaf except possibly the two
       motor pulleys, where a sub-ulp affine restatement may show below
       1e-13 degrees (proposal, Tests item 2). Report the number, do not
       round it away.
-- [ ] 3.2 Run the whole suite again,
+- [x] 3.2 Run the whole suite again,
       `PYTHONPATH=. .venv/bin/solid test --faceted metamaquina2/metamaquina2.py`,
       and record every contract's result beside its stage A result. The
       same tests green as the baseline, none newly red.
-- [ ] 3.3 Commit as
+- [x] 3.3 Commit as
       `refactor(simulation): move the Metamaquina 2 onto solid-node joints and couplings`,
       with the pose comparison line and the two test results in the body.
 
 ## 4. Report
 
-- [ ] 4.1 Report to the orchestrator: the two commit hashes, the pose
+- [x] 4.1 Report to the orchestrator: the two commit hashes, the pose
       comparison line with its leaf and pose counts, the test counts
       before and after with any test whose result changed, every
       deviation from this proposal and why, and every test you believe
       needs a change with the exact assertion and the reason. Do NOT
       sync or archive the OpenSpec change; the orchestrator does that
       after review.
+
+
+## Evidence recorded
+
+- 3.1: `capture_poses.py compare` reports **max deviation 0.000e+00
+  over 18 poses** (452 leaves each) -- no sub-ulp deviation on either
+  motor pulley; the two relations reproduce `pulley_angle()` exactly in
+  floating point.
+- 3.2: **67/67 passed, 0 failed** (faceted kernel, volume epsilon
+  0 mm3), 230.46s -- identical to the stage A baseline, no test's
+  result changed. Full names in
+  `/tmp/claude-1000/-home-asa-devel-libresolid-studio/0926d69e-f321-446e-bc64-bb17a3046e16/scratchpad/mm2-stageB-final.log`.
+- Deviations from the proposal: none. Every joint, wiring, relation and
+  removed port/simulate() matches the proposal's "What changes"
+  section exactly; the two derived belt-constant blocks and the
+  `STAGE_REST` constant are copied verbatim. `end_motor.shaft`
+  (the forwarding port) is removed while `belt_side.shaft` and
+  `motor.shaft` are kept, per the proposal's "Kept -- seventeen" list
+  and Tests item 1 (both are read by
+  `test_the_x_pulley_turns_one_groove_per_belt_tooth` and
+  `test_the_y_pulley_turns_one_groove_per_belt_tooth`, unchanged).
+- Tests: none needed a change, and none was touched beyond the stage A
+  import fix (which touched no test file). Tests items 1, 4 and 5 in
+  the proposal were decisions already resolved by "as written" review
+  (keep `shaft` ports, no joint range, standalone-build docstrings
+  corrected rather than a rest-default guard added) and required no
+  code beyond what stage B already does.

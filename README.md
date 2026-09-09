@@ -44,12 +44,15 @@ the structure, whether the power supply is fitted at all, and the
 placement of every part a builder bolts down and leaves -- the frame,
 the panels, the fasteners, the boxes at both ends of the beam, the reel
 stand. It reads no driver, so it is run once. What follows a driver is
-in `simulate()`, which runs on every instant and is the only place the
-three axes are read: the carriage along its beam, the bed on its rods,
-the two screws and the couplings turning on them, the two pulleys the
-belts are meshed on, and the shape the free run of filament is dragged
-into. Motion composes inside the rest placement, which is why a screw
-can spin about its own axis and still stand where it is held.
+declared where each part is: the carriage's slide, the bed's slide and
+the beam's lift are `solid_node.motion` joints on the bodies that have
+them, and `drives()` relations say that the three axes turn the screws,
+the couplings and the two motor pulleys the belts are meshed on --
+composed inside each rest placement, which is why a screw can spin
+about its own axis and still stand where it is held. What is left in
+`simulate()` is the one thing no joint states: the shape the free run
+of filament is dragged into, which is molejo geometry rather than a
+rigid part's pose.
 
     solid test metamaquina2/metamaquina2.py     # the contracts
     solid build metamaquina2/metamaquina2.py    # build the machine

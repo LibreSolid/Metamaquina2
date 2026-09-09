@@ -178,6 +178,18 @@ def pulley_angle(position):
     return turn * 180 / math.pi
 
 
+#: Millimetres of belt per degree of pulley: the pitch arc.
+PITCH_ARC = math.pi * (PULLEY_RADIUS + gt2.PITCH_LINE) / 180
+
+#: What a degree of pulley is worth along the bed's rods -- the pitch
+#: arc read back through the clamped run's own tilt, which is the
+#: port's own scale.
+BED_PER_DEGREE = PITCH_ARC / gt2.span_scale(CIRCLES, CLAMP_SPAN)
+
+#: Which way the pulley faces with the clamp at nought.
+PULLEY_AT_ORIGIN = pulley_angle(CLAMP_ORIGIN)
+
+
 class YBelt(gt2.Belt):
     """The GT2 loop around the three bar idlers and the motor pulley,
     clamped under the bed.

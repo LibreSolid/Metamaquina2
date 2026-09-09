@@ -1,6 +1,7 @@
 """The belt side of the motor X end: its plate, the X motor and its
 pulley."""
 
+from solid_node.motion.joints import Revolute
 from solid_node.motion.ports import RotationalPort
 from solid_node.node import AssemblyNode
 
@@ -34,6 +35,23 @@ from metamaquina2.x_stage.x_belt import PERIOD
 PULLEY_DEPTH = belt_offset - 1.5 * thickness - (WIDTH - belt_width) / 2
 
 
+class XPulley(GT2Pulley):
+    """The pulley on the X motor shaft: a `GT2Pulley` that turns on the
+    shaft the belt side bolts its motor to.
+
+    The anchor's along-axis component is nought rather than
+    `PULLEY_DEPTH`: the difference between the two points lies along
+    the rotation axis, where the two centring translations a turn away
+    from its own placed origin cancel it exactly, so the composed
+    matrix is the same either way and `PULLEY_DEPTH` stays where
+    `render()` needs it.
+    """
+
+    spin = Revolute(axis=(0, 0, 1),
+                    at=(XEnd_box_size / 2, XMotor_height, 0.0),
+                    unit='deg')
+
+
 class XEndMotorBeltSide(AssemblyNode):
     """The plate, the motor bolted to it, and the pulley on its shaft,
     in the plate's own plane.
@@ -41,24 +59,19 @@ class XEndMotorBeltSide(AssemblyNode):
     `shaft` is which way that pulley faces.  It comes in from outside
     because nothing here knows: a pulley's phase is a fact about the
     belt meshed on it, and the belt is drawn from where the carriage
-    stands, two assemblies up.  So this end no longer builds on its
-    own, in the same way and for the same reason the beam above it does
-    not -- an unconnected port has no value, and asking for one says so
-    instead of quietly drawing a tooth through a tooth.
+    stands, two assemblies up.  The wiring below carries it straight
+    into the pulley's own turn.
 
-    Nothing in this end travels, so `render` stands all three of them,
-    and the turn is what `simulate` has to say.  Motion composes
-    innermost, so the turn goes on before the pulley's placement: it
-    turns about the pulley's own axis rather than swinging it around
-    the plate's corner, and it is stated absolutely for its instant, so
-    a new carriage position replaces it rather than piling onto it.
+    Nothing in this end travels except the pulley, so `render` stands
+    the plate and the motor and the wiring is all there is to say per
+    instant.
     """
 
     shaft = RotationalPort(unit='deg')
 
     plate = XEndMotorBeltPlate()
     motor = Nema17Mount()
-    pulley = GT2Pulley(period=PERIOD)
+    pulley = XPulley(period=PERIOD, spin=shaft)
 
     def render(self):
         """Stand the plate, bolt the motor to it, and put the pulley on
@@ -76,7 +89,3 @@ class XEndMotorBeltSide(AssemblyNode):
 
         self.pulley.translate(
             [XEnd_box_size / 2, XMotor_height, PULLEY_DEPTH])
-
-    def simulate(self):
-        """Turn the pulley to where the belt's teeth are."""
-        self.pulley.rotate(self.shaft.value, [0, 0, 1])

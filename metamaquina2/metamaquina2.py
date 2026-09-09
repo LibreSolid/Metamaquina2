@@ -240,6 +240,19 @@ CROSSING_CLEARANCE = 12 * filament_diameter
 CROSSING_Z = (BuildPlatform_height + BuildVolume_Z + nozzle_tip_distance
               + TOP_OF_THE_BEAM + CROSSING_CLEARANCE)
 
+#: Where the beam stands with the screws at nought.
+#:
+#: The constant part of the vector the beam used to be placed by
+#: whole: nought across the machine, off the origin by
+#: `XZStage_offset` the way the Y platform is, and up by the build
+#: platform's height plus how far the nozzle tip stands below the
+#: stage.  `x_stage.lift` is the one moving term, and translations
+#: along different components of one vector commute, so standing the
+#: beam from here and then lifting it composes to the same matrix the
+#: single translate used to build.
+STAGE_REST = [0, -XZStage_offset,
+              BuildPlatform_height + nozzle_tip_distance]
+
 
 class Metamaquina2(AssemblyNode):
     """The complete Metamaquina 2 desktop 3D printer.
@@ -331,6 +344,21 @@ class Metamaquina2(AssemblyNode):
     spool_holder = SpoolHolder()
     filament = Filament()
 
+    #: X, in the design's own carriage coordinate, drives the carriage's
+    #: slide from wherever `render()` draws it at rest.
+    x.drives(x_stage.carriage.travel, offset=-XCarPosition)
+    #: Y drives the platform the same way, off by the whole X/Z stage's
+    #: own stand-off from the origin.
+    y.drives(y_axis.platform.slide, offset=-XZStage_offset)
+    #: Z is the screws' own angle in degrees; `z_screw.SCALE` is what a
+    #: degree of it is worth in millimetres of beam.
+    z.drives(x_stage.lift, ratio=z_screw.SCALE)
+    #: The bars and the couplings turn with the screws too, offset by
+    #: the phase a builder turns into them once to line their thread up
+    #: with the nuts.
+    z.drives(z_axis.bars.angle, offset=z_screw.PHASE)
+    z.drives(z_axis.couplings.angle, offset=z_screw.PHASE)
+
     @property
     def spool_holder_position(self):
         """Where the stand stands, in the machine's coordinates."""
@@ -355,18 +383,20 @@ class Metamaquina2(AssemblyNode):
                 for axis in range(3)]
 
     def render(self):
-        """Stand the reel beside the machine and hang the stock on it.
+        """Stand the reel beside the machine, hang the stock on it, and
+        stand the beam where the screws hold it at nought.
 
-        This is the whole of the machine at rest that this class has to
-        say: everything else it holds stands itself, and the three
-        drivers are `simulate`'s.
+        Neither the stand nor the strand's frame goes anywhere: the
+        stand is a separate piece of furniture and does not move when
+        the machine does, and the strand's own frame is the stand's, so
+        both are placed here, from wherever `spool_holder_offset` puts
+        the stand.  What follows the machine is the shape of the free
+        run, and that is told to it every instant through its ports.
 
-        Neither of these two goes anywhere.  The stand is a separate
-        piece of furniture and does not move when the machine does, and
-        the strand's own frame is the stand's, so both are placed here,
-        from wherever `spool_holder_offset` puts the stand.  What
-        follows the machine is the shape of the free run, and that is
-        told to it every instant through its ports.
+        The beam does move, but `STAGE_REST` is its rest -- the
+        constant part of what used to be one `translate` in `simulate`
+        -- and `x_stage.lift`'s relation, declared above, carries it
+        the rest of the way from here.
         """
         (self.spool_holder
          .rotate(90, [0, 0, 1])
@@ -376,33 +406,28 @@ class Metamaquina2(AssemblyNode):
          .rotate(*filament_module.PLACEMENT)
          .translate(self.strand_origin))
 
+        self.x_stage.translate(STAGE_REST)
+
     def simulate(self):
-        """Move what the drivers move.
+        """Draw the free run where it belongs at this instant.
 
-        X and Y are relayed into the axis that owns the moving frame,
-        because the carriage and the bed are placed inside their own
-        assemblies.
-
-        Z is told twice, because a screw drive is two statements about
-        one number.  The axis is told how far its bars are turned, plus
-        the constant `z_screw.PHASE` that lines their thread up with the
-        nuts the beam hangs on -- the turn a builder puts in once, with
-        the screws in their hands, and never again.  Then the stage is
-        lifted to what that turn is worth.  The lift is a translate here
-        rather than a port because the machine itself is what holds the
-        beam at a height; what the beam hangs FROM is in the Z axis, and
-        the two agree because both are read off the same screw.
+        X, Y and Z reach the carriage's slide, the platform's slide and
+        the beam's lift, and the bars' and the couplings' angles,
+        through the five relations above -- nothing left for this
+        method to relay.
 
         The filament is told the points its free run is pinned at, and
-        one of them is the same lift a third time.  The beam says where
-        its extruder's channel opens in its own frame, the machine adds
-        what it stood the beam off by, and `in_strand_frame` reads the
-        result back in the strand's own turned frame.  The other is
-        where the run gets over the machine, which is the machine's to
-        say because both the frame it has to clear and the height its
-        own head reaches are: a point of air off the machine's own edge,
-        above the top of the beam at the top of its travel, in the plane
-        the run comes in on.
+        one of them is the beam's own lift a second time.  The beam
+        says where its extruder's channel opens in its own frame, the
+        machine adds what it stood the beam off by -- `STAGE_REST` plus
+        the same lift `x_stage.lift`'s relation is worth -- and
+        `in_strand_frame` reads the result back in the strand's own
+        turned frame.  The other is where the run gets over the
+        machine, which is the machine's to say because both the frame
+        it has to clear and the height its own head reaches are: a
+        point of air off the machine's own edge, above the top of the
+        beam at the top of its travel, in the plane the run comes in
+        on.
 
         Five ports rather than two, because a point is three numbers and
         a molejo parameter is a plain named number with no arithmetic
@@ -414,14 +439,8 @@ class Metamaquina2(AssemblyNode):
         """
         strand_origin = self.strand_origin
 
-        self.connect(self.x, self.x_stage.carriage_position)
-        self.connect(self.y, self.y_axis.platform_position)
-        self.connect(self.z + z_screw.PHASE, self.z_axis.screw)
-
-        stage = [0, -XZStage_offset,
-                 BuildPlatform_height + z_screw.lift(self.z)
-                 + nozzle_tip_distance]
-        self.x_stage.translate(stage)
+        stage = [STAGE_REST[0], STAGE_REST[1],
+                 STAGE_REST[2] + z_screw.lift(self.z)]
 
         entry = filament_entry(self.x)
         entry = [entry[axis] + stage[axis] for axis in range(3)]

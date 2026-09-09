@@ -1,5 +1,6 @@
 """The moving Y platform: the bed carriage."""
 
+from solid_node.motion.joints import Prismatic
 from solid_node.node import AssemblyNode
 
 from metamaquina2.hardware.double_m3_spacer import DoubleM3Spacer
@@ -76,7 +77,12 @@ class YPlatform(AssemblyNode):
     Everything that appears more than once here is one part repeated:
     four levelling screws, four belt clamps, five pairs of spacers,
     three bearings, seven sandwich bolts and two endstop tabs.
+
+    `slide` is how far this platform has moved along the machine's +Y
+    from where `render()` draws it, at the middle of its travel.
     """
+
+    slide = Prismatic(axis=(0, 1, 0), unit='mm')
 
     # where the belt clamps grip, either side of the centreline
     belt_clamp_offsets = (-20, 20)

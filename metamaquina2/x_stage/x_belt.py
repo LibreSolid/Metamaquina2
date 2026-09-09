@@ -149,6 +149,18 @@ def pulley_angle(position):
     return turn * 180 / math.pi
 
 
+#: Millimetres of belt per degree of pulley: the pitch arc.
+PITCH_ARC = math.pi * (PULLEY_RADIUS + gt2.PITCH_LINE) / 180
+
+#: What a degree of pulley is worth along the beam -- the pitch arc read
+#: back through the clamped run's own tilt, which is the port's own
+#: scale.
+BEAM_PER_DEGREE = PITCH_ARC / gt2.span_scale(CIRCLES, CLAMP_SPAN)
+
+#: Which way the pulley faces with the clamp at nought.
+PULLEY_AT_ORIGIN = pulley_angle(CLAMP_ORIGIN)
+
+
 class XBelt(gt2.Belt):
     """The GT2 loop from the motor pulley at the left of the beam to the
     idler bearing at the right, clamped to the carriage in between.

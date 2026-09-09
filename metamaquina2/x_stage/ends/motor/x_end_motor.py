@@ -1,6 +1,5 @@
 """The motor-side X end."""
 
-from solid_node.motion.ports import RotationalPort
 from solid_node.node import AssemblyNode
 
 from metamaquina2.frame.tslot_bolt import TSlotBolt
@@ -43,13 +42,10 @@ class XEndMotor(AssemblyNode):
     that is, `z_screw` says, because the machine has to turn the bars
     to the phase that puts a thread under it.
 
-    `shaft` passes straight through to the belt side, which is where
-    the pulley is.  The box has nothing to say about the angle -- it is
-    a fact about the belt, which the beam above owns -- so it relays it
-    rather than deriving anything from it.
+    The pulley's phase is a fact about the belt, which the beam above
+    owns; the beam reaches `belt_side.shaft` directly, by path, so this
+    box has nothing to relay.
     """
-
-    shaft = RotationalPort(unit='deg')
 
     back_plate = XEndMotorBackPlate()
     back_joints = TSlotBolt().repeat(len(XEndMotor_back_face_TSLOTS))
@@ -120,12 +116,3 @@ class XEndMotor(AssemblyNode):
                 .translate([thickness + lm8uu_diameter / 2, 0,
                             XPlatform_height / 2
                             + end * XPlatform_height / 2]))
-
-    def simulate(self):
-        """Hand the pulley's phase on to the box that holds it.
-
-        Nothing in this box moves -- the beam carries the whole of it
-        -- so `render` stands every plate, bolt and bearing, and the
-        one wire is all there is to say per instant.
-        """
-        self.connect(self.shaft, self.belt_side.shaft)

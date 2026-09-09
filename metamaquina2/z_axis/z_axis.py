@@ -1,6 +1,5 @@
 """The Z axis."""
 
-from solid_node.motion.ports import RotationalPort
 from solid_node.node import AssemblyNode
 
 from metamaquina2.z_axis.z_bars import ZBars
@@ -17,24 +16,19 @@ class ZAxis(AssemblyNode):
     raises it.  Two independent motors, which is why the machine can
     be levelled but also why it can be racked.
 
-    `screw` is how far the bars have been turned, and it goes to the
-    bars and to the couplings alike -- a coupling is clamped to the
-    shaft it joins, so there is no ratio between them to state.  The
-    motors and the smooth rods take nothing: a stepper's case does not
-    turn with its rotor, and a rod the stage slides on never did.
+    How far the bars have been turned reaches `bars.angle` and
+    `couplings.angle` by path from the machine, one for one -- a
+    coupling is clamped to the shaft it joins, so there is no ratio
+    between them to state.  The motors and the smooth rods take
+    nothing: a stepper's case does not turn with its rotor, and a rod
+    the stage slides on never did.
 
     Nothing here is placed: each of the four stands in the machine's
-    own frame already, so there is nothing for `render` to do, and
-    `simulate` only wires the screw angle through.
+    own frame already, so there is nothing for `render` to do, and this
+    axis has nothing left to say per instant either.
     """
-
-    screw = RotationalPort(unit='deg')
 
     motors = ZMotors()
     couplings = ZCouplings()
     bars = ZBars()
     rods = ZRods()
-
-    def simulate(self):
-        self.connect(self.screw, self.bars.angle)
-        self.connect(self.screw, self.couplings.angle)

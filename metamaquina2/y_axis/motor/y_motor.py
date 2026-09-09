@@ -1,5 +1,6 @@
 """The Y motor on its holder."""
 
+from solid_node.motion.joints import Revolute
 from solid_node.motion.ports import RotationalPort
 from solid_node.node import AssemblyNode
 
@@ -13,6 +14,22 @@ from metamaquina2.params import (
 from metamaquina2.y_axis.motor.motor_holder import YMotorHolder
 from metamaquina2.y_axis.motor.mount import ALONG, ACROSS, DEPTH, HEIGHT, SHAFT
 from metamaquina2.y_axis.y_belt import PERIOD
+
+
+class YPulley(GT2Pulley):
+    """The pulley on the Y motor shaft, standing in the belt's own
+    plane rather than the motor's.
+
+    `render()` stands this pulley with two rotations that carry its
+    own +Z onto the machine's -X, which is the fact `YMotor`'s own
+    docstring used to spend a paragraph explaining: its local x lands
+    on the loop's x and its axis on the loop's width.  The anchor's
+    along-axis component is nought for the same reason `XPulley`'s is:
+    it cancels in the composition and does not change the pose.
+    """
+
+    spin = Revolute(axis=(-1, 0, 0), at=(0.0, SHAFT[0], SHAFT[1]),
+                    unit='deg')
 
 
 class YMotor(AssemblyNode):
@@ -30,7 +47,8 @@ class YMotor(AssemblyNode):
     its `GT2_pulley` draws nothing and its belt runs three bare
     bearings and stops thirty millimetres short of this shaft -- but
     the machine it draws is driven from here, and the loop reaches the
-    pulley once it is bent backwards over it.
+    pulley once it is bent backwards over it.  The wiring below carries
+    it straight into the pulley's own turn.
 
     The pulley is placed from the belt rather than from the motor.  Its
     axis is the shaft's, which the mount fixes; where it stands along
@@ -60,7 +78,7 @@ class YMotor(AssemblyNode):
 
     holder = YMotorHolder()
     motor = Nema17Mount()
-    pulley = GT2Pulley(period=PERIOD)
+    pulley = YPulley(period=PERIOD, spin=shaft)
 
     def mounted(self, node):
         """Stand `node` in the holder's frame, behind the rear bar."""
@@ -91,8 +109,8 @@ class YMotor(AssemblyNode):
         The pulley's two rotations are the belt's own placement, so its
         local x lands on the loop's x and its axis on the loop's width:
         a groove drawn on the part's +X is then a groove at nought
-        degrees of the plane `y_belt` measures its angles in.  All
-        three of these stand it; what turns it is `simulate`.
+        degrees of the plane `y_belt` measures its angles in.  What
+        turns it is the wiring, from the shaft.
         """
         self.mounted(self.holder)
         self.on_motor(self.motor)
@@ -101,13 +119,3 @@ class YMotor(AssemblyNode):
         self.pulley.rotate(-90, [0, 0, 1])
         self.pulley.translate([belt_width / 2 - self.pulley_offset,
                                SHAFT[0], SHAFT[1]])
-
-    def simulate(self):
-        """Turn the pulley to where the belt's teeth are.
-
-        Motion composes innermost, so this turn goes on before the
-        three operations that stand the pulley: it turns about the
-        pulley's own axis and is then carried to the shaft, rather
-        than swinging the pulley around the machine.
-        """
-        self.pulley.rotate(self.shaft.value, [0, 0, 1])
