@@ -3,7 +3,7 @@
 import math
 
 from molejo import P, Shape, Wrap
-from solid_node.node import TranslationalPort
+from solid_node.motion.ports import TranslationalPort
 
 from metamaquina2 import gt2
 from metamaquina2.hardware.gt2_pulley import TEETH

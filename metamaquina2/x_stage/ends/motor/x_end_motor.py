@@ -1,6 +1,7 @@
 """The motor-side X end."""
 
-from solid_node.node import AssemblyNode, RotationalPort
+from solid_node.motion.ports import RotationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.frame.tslot_bolt import TSlotBolt
 from metamaquina2.hardware.lm8uu import LM8UU

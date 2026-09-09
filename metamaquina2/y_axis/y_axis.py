@@ -1,6 +1,7 @@
 """The Y axis."""
 
-from solid_node.node import AssemblyNode, TranslationalPort
+from solid_node.motion.ports import TranslationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.params import (
     XZStage_offset,

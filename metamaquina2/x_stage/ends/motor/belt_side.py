@@ -1,7 +1,8 @@
 """The belt side of the motor X end: its plate, the X motor and its
 pulley."""
 
-from solid_node.node import AssemblyNode, RotationalPort
+from solid_node.motion.ports import RotationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.hardware.gt2_pulley import WIDTH, GT2Pulley
 from metamaquina2.hardware.nema17_mount import Nema17Mount

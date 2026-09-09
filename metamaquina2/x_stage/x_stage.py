@@ -1,6 +1,7 @@
 """The X stage: the whole beam the Z axis lifts."""
 
-from solid_node.node import AssemblyNode, TranslationalPort
+from solid_node.motion.ports import TranslationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.params import (
     XCarPosition,

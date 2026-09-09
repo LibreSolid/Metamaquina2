@@ -1,6 +1,7 @@
 """The two vertical threaded bars that lift the X stage."""
 
-from solid_node.node import AssemblyNode, RotationalPort
+from solid_node.motion.ports import RotationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.hardware.threaded_rod import ThreadedRod
 from metamaquina2.params import (

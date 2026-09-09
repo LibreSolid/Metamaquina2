@@ -102,7 +102,8 @@ ask for all four.
 """
 
 from molejo import Circle, Helix, P, Shape, Spline
-from solid_node.node import MolejoNode, TranslationalPort
+from solid_node.motion.ports import TranslationalPort
+from solid_node.node import MolejoNode
 
 from metamaquina2 import materials
 from metamaquina2.params import (

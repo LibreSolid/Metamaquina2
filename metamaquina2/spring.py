@@ -45,7 +45,8 @@ wire standing proud at each end, which is what `rise` is about.
 """
 
 from molejo import Circle, Helix, P, Shape
-from solid_node.node import MolejoNode, TranslationalPort
+from solid_node.motion.ports import TranslationalPort
+from solid_node.node import MolejoNode
 from solid_node.parameters import Length
 
 from metamaquina2 import materials

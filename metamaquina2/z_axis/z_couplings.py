@@ -1,6 +1,7 @@
 """The couplings that join each Z motor shaft to its threaded bar."""
 
-from solid_node.node import AssemblyNode, RotationalPort
+from solid_node.motion.ports import RotationalPort
+from solid_node.node import AssemblyNode
 
 from metamaquina2.hardware.shaft_coupling import ShaftCoupling
 from metamaquina2.params import (
