@@ -39,17 +39,14 @@ class XPulley(GT2Pulley):
     """The pulley on the X motor shaft: a `GT2Pulley` that turns on the
     shaft the belt side bolts its motor to.
 
-    The anchor's along-axis component is nought rather than
-    `PULLEY_DEPTH`: the difference between the two points lies along
-    the rotation axis, where the two centring translations a turn away
-    from its own placed origin cancel it exactly, so the composed
-    matrix is the same either way and `PULLEY_DEPTH` stays where
-    `render()` needs it.
+    `render()` places this body by a pure translation, so `spin`'s own
+    rest-frame axis is the same `(0, 0, 1)` the parent's frame states
+    -- no rotation to carry it through.  No anchor is needed either:
+    the pulley is bored through its own origin, and `PULLEY_DEPTH`
+    stays exactly where `render()` puts it.
     """
 
-    spin = Revolute(axis=(0, 0, 1),
-                    at=(XEnd_box_size / 2, XMotor_height, 0.0),
-                    unit='deg')
+    spin = Revolute(axis=(0, 0, 1), unit='deg')
 
 
 class XEndMotorBeltSide(AssemblyNode):

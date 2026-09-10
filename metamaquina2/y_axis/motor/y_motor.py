@@ -23,13 +23,16 @@ class YPulley(GT2Pulley):
     `render()` stands this pulley with two rotations that carry its
     own +Z onto the machine's -X, which is the fact `YMotor`'s own
     docstring used to spend a paragraph explaining: its local x lands
-    on the loop's x and its axis on the loop's width.  The anchor's
-    along-axis component is nought for the same reason `XPulley`'s is:
-    it cancels in the composition and does not change the pose.
+    on the loop's x and its axis on the loop's width.  `spin` is
+    stated in this body's OWN rest frame, so it reads the shaft
+    direction after those two rotations rather than before them: the
+    machine's -X, carried back through `render()`'s
+    `rotate(90,[1,0,0]).rotate(-90,[0,0,1])`, lands on this body's own
+    +Z.  No anchor is needed -- the pulley is bored through its own
+    origin.
     """
 
-    spin = Revolute(axis=(-1, 0, 0), at=(0.0, SHAFT[0], SHAFT[1]),
-                    unit='deg')
+    spin = Revolute(axis=(0, 0, 1), unit='deg')
 
 
 class YMotor(AssemblyNode):

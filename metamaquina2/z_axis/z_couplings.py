@@ -26,13 +26,15 @@ class ZCouplings(AssemblyNode):
     They also turn, which is the plainest thing about them and was
     missing: a coupling is clamped to the shaft at one end and to the
     bar at the other, so it goes round with both or it is not a
-    coupling.  `angle` is the bar's own, relayed by the axis; there is
-    nothing for this assembly to derive from it, because a clamped
-    joint has no ratio.
+    coupling.  `angle` is the bar's own, relayed by the axis -- `angle`
+    drives `couplings.spin` once, fanned out over both copies -- and
+    there is nothing for this assembly to derive from it, because a
+    clamped joint has no ratio.
 
     Where each coupling sits is fixed by the shaft and the bar it
-    clamps, so `render` seats the two of them once and `simulate` only
-    turns them.
+    clamps, so `render` seats the two of them once and there is
+    nothing left to say per instant: each coupling's own `spin` joint
+    turns it about its own axis, wherever `render` has translated it.
     """
 
     angle = RotationalPort(unit='deg')
@@ -44,11 +46,9 @@ class ZCouplings(AssemblyNode):
 
     couplings = ShaftCoupling().repeat(2)
 
+    angle.drives(couplings.spin)
+
     def render(self):
         for side, coupling in zip((-1, 1), self.couplings):
             coupling.translate(
                 [side * self.offset, -XZStage_offset, self.height])
-
-    def simulate(self):
-        for coupling in self.couplings:
-            coupling.rotate(self.angle.value, [0, 0, 1])

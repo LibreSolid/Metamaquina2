@@ -3,7 +3,7 @@
 from solid_node.motion.ports import RotationalPort
 from solid_node.node import AssemblyNode
 
-from metamaquina2.hardware.threaded_rod import ThreadedRod
+from metamaquina2.hardware.threaded_rod import SpinningThreadedRod
 from metamaquina2.params import (
     XZStage_offset,
     Z_bar_length,
@@ -29,19 +29,18 @@ class ZBars(AssemblyNode):
     asking for one says so instead of quietly drawing a screw that
     stands still under a stage it is supposed to be holding up.
 
-    Both bars take the same angle.  The motors face each other, which
-    is a fact about how they are bolted under the panel and not about
-    which way they turn: two nuts rising together are two screws
-    turning the same way, and a machine whose bars disagreed would rack
-    its own beam.
+    Both bars take the same angle: `angle` drives `bars.spin` once,
+    fanned out over both copies, rather than being relayed by hand.
+    The motors face each other, which is a fact about how they are
+    bolted under the panel and not about which way they turn: two nuts
+    rising together are two screws turning the same way, and a machine
+    whose bars disagreed would rack its own beam.
 
     Where a bar stands never changes -- it is held between the motor
     below it and the top of the machine -- so `render` stands the two
-    of them once, and the turn is all that is left to `simulate`.  A
-    turn applied there goes on before the placement, which is what a
-    bar spinning about its own axis rather than swinging around the
-    middle of the machine needs, and it is stated absolutely for its
-    instant, so a new height replaces it rather than piling onto it.
+    of them once and there is nothing left to say per instant: each
+    bar's own `spin` joint, not a hand-written rotation, is what turns
+    it about its own axis, wherever `render` has translated it.
     """
 
     angle = RotationalPort(unit='deg')
@@ -50,12 +49,10 @@ class ZBars(AssemblyNode):
     offset = (machine_x_dim / 2 - thickness - lm8uu_diameter / 2
               - z_rod_z_bar_distance)
 
-    bars = ThreadedRod(length=Z_bar_length).repeat(2)
+    bars = SpinningThreadedRod(length=Z_bar_length).repeat(2)
+
+    angle.drives(bars.spin)
 
     def render(self):
         for side, bar in zip((-1, 1), self.bars):
             bar.translate([side * self.offset, -XZStage_offset, BAR_BASE])
-
-    def simulate(self):
-        for bar in self.bars:
-            bar.rotate(self.angle.value, [0, 0, 1])

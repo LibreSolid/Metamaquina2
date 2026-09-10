@@ -1,5 +1,6 @@
 """A length of M8 threaded bar."""
 
+from solid_node.motion.joints import Revolute
 from solid_node.node import Build123dNode
 from solid_node.parameters import Length
 
@@ -32,3 +33,15 @@ class ThreadedRod(Build123dNode):
 
     def render(self):
         return thread.thread(self.length, diameter=self.diameter)
+
+
+class SpinningThreadedRod(ThreadedRod):
+    """A threaded bar that turns about its own +Z: the two Z-axis bars,
+    not the four that only stiffen the frame.
+
+    A bought M8 rod has no opinion about which way is up, so `spin`
+    needs no anchor: turning it about its own placed origin is turning
+    it about the thread, wherever `render()` has stood it.
+    """
+
+    spin = Revolute(axis=(0, 0, 1), unit='deg')
